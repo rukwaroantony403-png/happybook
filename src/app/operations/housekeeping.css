@@ -1,0 +1,37 @@
+.housekeeping-workspace{display:grid;gap:16px}
+.housekeeping-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.housekeeping-summary article{display:grid;gap:7px;border:1px solid #e6ebe5;border-radius:12px;padding:17px;background:var(--op-paper);box-shadow:var(--op-shadow)}
+.housekeeping-summary article>span,.housekeeping-summary article>small{color:var(--op-muted);font-size:11px}
+.housekeeping-summary article>b{color:var(--op-ink);font:700 24px/1.1 var(--op-display)}
+.housekeeping-summary .housekeeping-summary-alert>b{color:#a64a36}
+.housekeeping-task-form>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.housekeeping-task-form label{min-width:0}
+.housekeeping-task-form input,.housekeeping-task-form select,.housekeeping-task-form textarea{width:100%;min-width:0}
+.housekeeping-wide-field,.housekeeping-form-actions{grid-column:1/-1}
+.housekeeping-form-actions{display:flex;align-items:center;gap:8px}
+.housekeeping-task-list{display:grid;gap:12px}
+.housekeeping-task-list>header{display:flex;justify-content:space-between;align-items:flex-start}
+.housekeeping-task-list>header h2{margin:0;color:var(--op-ink);font:600 18px/1.2 var(--op-display)}
+.housekeeping-task-list>header p{margin:6px 0 0;color:var(--op-muted);font-size:11px;line-height:1.5}
+.housekeeping-task-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.housekeeping-task-card{display:grid;gap:12px;border:1px solid #e6ebe5;border-radius:12px;padding:16px;background:var(--op-paper);box-shadow:var(--op-shadow)}
+.housekeeping-task-card.housekeeping-task-priority{border-color:#edcfaa}
+.housekeeping-task-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.housekeeping-task-card-head>div{display:grid;gap:4px}
+.housekeeping-task-room{color:var(--op-ink);font:700 17px/1.2 var(--op-display)}
+.housekeeping-task-card-head small,.housekeeping-task-card>p,.housekeeping-reservation-link{color:var(--op-muted);font-size:11px}
+.housekeeping-task-status{border-radius:999px;padding:5px 8px;font-size:10px;font-weight:700;white-space:nowrap}
+.housekeeping-status-reported{background:#fff3df;color:#805b20}
+.housekeeping-status-in-progress{background:#e8f0fa;color:#3c5d80}
+.housekeeping-status-ready,.housekeeping-status-done{background:#eaf4ed;color:#28613f}
+.housekeeping-task-card h3{margin:0;color:var(--op-ink);font-size:14px}
+.housekeeping-task-card>p{margin:0;line-height:1.55;overflow-wrap:anywhere}
+.housekeeping-task-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0}
+.housekeeping-task-card dl>div{display:grid;gap:4px;min-width:0}
+.housekeeping-task-card dt{color:var(--op-muted);font-size:9px}
+.housekeeping-task-card dd{margin:0;color:var(--op-ink);font-size:11px;overflow-wrap:anywhere}
+.housekeeping-reservation-link{border-top:1px solid #edf0eb;padding-top:10px}
+.housekeeping-status-control{display:grid;grid-template-columns:1fr minmax(140px,1fr);align-items:center;gap:10px;color:var(--op-muted);font-size:10px}
+.housekeeping-status-control select{height:34px;border:1px solid #dce5de;border-radius:6px;padding:0 9px;background:#fff;color:var(--op-ink);font-size:11px}
+@media(max-width:760px){.housekeeping-summary{grid-template-columns:1fr}.housekeeping-task-form>div{grid-template-columns:1fr 1fr}.housekeeping-wide-field,.housekeeping-form-actions{grid-column:1/-1}.housekeeping-task-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.housekeeping-task-form>div{grid-template-columns:1fr}.housekeeping-wide-field,.housekeeping-form-actions{grid-column:auto}.housekeeping-task-card dl{grid-template-columns:1fr 1fr}}

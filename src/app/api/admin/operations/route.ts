@@ -42,7 +42,15 @@ export async function POST(request: Request) {
   if (kind === "expense" && (!name || name.length > 200 || !Number.isSafeInteger(amount) || amount < 1 || amount > 100000000 || !required("category"))) return Response.json({ error: "Enter an expense description, category and valid KSh amount." }, { status: 400 });
   if (kind === "inventory" && (!name || name.length > 200 || !required("category") || !required("unit") || String(record.unit).length > 40 || String(record.sku || "").length > 80 || String(record.description || "").length > 500 || String(record.supplier || "").length > 200 || !Number.isSafeInteger(quantity) || quantity < 0 || quantity > 1000000 || !Number.isSafeInteger(reorderAt) || reorderAt < 0 || reorderAt > 1000000 || !Number.isSafeInteger(unitCost) || unitCost < 0 || unitCost > 100000000)) return Response.json({ error: "Enter a valid item name, category, unit, quantity, reorder level and unit cost." }, { status: 400 });
   if (kind === "supplier" && (!name || name.length > 200)) return Response.json({ error: "Enter a supplier name." }, { status: 400 });
-  if (kind === "housekeeping" && (!required("room") || !required("task"))) return Response.json({ error: "Enter a room and housekeeping task." }, { status: 400 });
+  if (kind === "housekeeping" && (
+    !required("room") ||
+    !required("task") ||
+    String(record.task).trim().length > 160 ||
+    String(record.assignedTo || "").length > 120 ||
+    String(record.description || "").length > 1000 ||
+    (record.dueDate !== undefined && record.dueDate !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(String(record.dueDate))) ||
+    (record.priority !== undefined && !["normal", "high", "urgent"].includes(String(record.priority)))
+  )) return Response.json({ error: "Enter a valid room number, task, priority, and assignment." }, { status: 400 });
   if (kind === "maintenance" && (!required("room") || (!required("issue") && !required("description")))) return Response.json({ error: "Enter a room and maintenance issue." }, { status: 400 });
   try {
     const saved = saveOperationalRecord(kind as Kind, record, staff.fullName);

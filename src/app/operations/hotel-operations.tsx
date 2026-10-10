@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { Dashboard, emptySnapshot, Icon, LiveSnapshot, Module, Section, StaffIdentity } from "../operations-live";
 import "../operations.css";
+import "./housekeeping.css";
 import { PaymentReceiptDialog } from "../../components/receipts/PaymentReceipt";
 import "../../components/receipts/receipt-print.css";
 

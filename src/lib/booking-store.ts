@@ -903,19 +903,60 @@ export function updateReservationStatus(reference: string, status: string, actor
     confirmed: ["checked-in", "no-show", "cancelled"],
     "checked-in": ["checked-out"],
   };
-  const reservation = database.prepare(`SELECT reference,guest_name AS guest,room_slug AS roomSlug,check_out AS checkOut,status
-    FROM reservations WHERE reference=?`).get(reference) as { reference: string; guest: string; roomSlug: string; checkOut: string; status: string } | undefined;
-  if (!reservation || !transitions[reservation.status]?.includes(status)) return false;
-  const result = database.prepare("UPDATE reservations SET status=? WHERE reference=? AND status=?").run(status, reference, reservation.status);
-  if (result.changes) {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const reservation = database.prepare(`SELECT id,reference,guest_name AS guest,check_out AS checkOut,status
+      FROM reservations WHERE reference=?`).get(reference) as { id: number; reference: string; guest: string; checkOut: string; status: string } | undefined;
+    if (!reservation || !transitions[reservation.status]?.includes(status)) {
+      database.exec("ROLLBACK");
+      return false;
+    }
+    const result = database.prepare("UPDATE reservations SET status=? WHERE reference=? AND status=?").run(status, reference, reservation.status);
+    if (!result.changes) {
+      database.exec("ROLLBACK");
+      return false;
+    }
     recordAudit("reservation.status_changed", "reservation", reference, { previousStatus: reservation.status, status }, actor);
-    if (status === "checked-out") saveOperationalRecord("housekeeping", {
-      id: `turnover-${reference}`, reservationReference: reference, guest: reservation.guest,
-      roomType: reservation.roomSlug, task: "Departure clean", status: "dirty", priority: "high",
-      checkOut: reservation.checkOut, createdBy: actor,
-    }, actor);
+    if (status === "checked-out") {
+      const units = database.prepare(`SELECT DISTINCT u.id,u.code,u.unit_details AS unitDetails
+        FROM room_units u
+        WHERE u.active=1 AND (
+          u.id IN (SELECT room_unit_id FROM reservation_room_units WHERE reservation_id=?) OR
+          u.id=(SELECT room_unit_id FROM reservations WHERE id=?)
+        ) ORDER BY u.code`).all(reservation.id, reservation.id) as { id: number; code: string; unitDetails: string }[];
+      for (const unit of units) {
+        const unitDetails = JSON.parse(unit.unitDetails || "{}") as Record<string, unknown>;
+        if (!["maintenance", "out-of-service", "blocked"].includes(String(unitDetails.operationalStatus || ""))) {
+          database.prepare("UPDATE room_units SET unit_details=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+            .run(JSON.stringify({ ...unitDetails, operationalStatus: "dirty" }), unit.id);
+        }
+        const taskId = `turnover-${reference}-${unit.code}`;
+        const task = {
+          id: taskId,
+          room: unit.code,
+          task: "Departure clean",
+          status: "reported",
+          priority: "high",
+          assignedTo: "",
+          reservationReference: reference,
+          guest: reservation.guest,
+          dueDate: reservation.checkOut,
+          description: `Prepare room ${unit.code} after reservation ${reference}.`,
+          createdBy: actor,
+        };
+        database.prepare(`INSERT INTO operational_records(kind,record_key,payload)
+          VALUES('housekeeping',?,?)
+          ON CONFLICT(kind,record_key) DO UPDATE SET payload=excluded.payload,updated_at=CURRENT_TIMESTAMP`)
+          .run(taskId, JSON.stringify(task));
+        recordAudit("housekeeping.task_created", "housekeeping", taskId, task, actor);
+      }
+    }
+    database.exec("COMMIT");
+    return true;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
   }
-  return result.changes > 0;
 }
 
 export function getReservationStatusEmail(reference: string) {
@@ -1217,6 +1258,7 @@ export function saveOperationalRecord(kind: OperationalKind, record: Record<stri
   if (kind === "payment") return recordHotelPayment(record, actor);
   if (kind === "service" && typeof record.reservationReference === "string") return addFolioCharge(record, actor);
   if (kind === "inventory") return saveInventoryItem(record, actor);
+  if (kind === "housekeeping") return saveHousekeepingRecord(record, actor);
   const key = typeof record.id === "string" && record.id ? record.id : `${kind}-${randomBytes(6).toString("hex").toUpperCase()}`;
   const payload = { ...record, id: key };
   database.prepare(`INSERT INTO operational_records (kind, record_key, payload) VALUES (?, ?, ?)
@@ -1224,6 +1266,66 @@ export function saveOperationalRecord(kind: OperationalKind, record: Record<stri
     .run(kind, key, JSON.stringify(payload));
   recordAudit(typeof record.id === "string" ? "record.updated" : "record.created", kind, key, payload, actor);
   return payload;
+}
+
+function saveHousekeepingRecord(record: Record<string, unknown>, actor: string) {
+  const enteredRoom = typeof record.room === "string" ? record.room.trim() : "";
+  const task = typeof record.task === "string" ? record.task.trim() : "";
+  const suppliedId = typeof record.id === "string" && record.id ? record.id : "";
+  const key = suppliedId || `housekeeping-${randomBytes(6).toString("hex").toUpperCase()}`;
+  const status = String(record.status || "reported");
+  if (!enteredRoom || enteredRoom.length > 100 || !task || task.length > 160 ||
+      !["reported", "in-progress", "ready", "done"].includes(status) ||
+      String(record.priority || "normal").length > 20 ||
+      String(record.assignedTo || "").length > 120 ||
+      String(record.description || "").length > 1000 ||
+      String(record.reservationReference || "").length > 80) {
+    throw new Error("Enter a valid room number, task, priority, and assignment.");
+  }
+
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const unit = database.prepare(`SELECT id,code,unit_details AS unitDetails FROM room_units
+      WHERE lower(code)=lower(?) AND active=1 LIMIT 1`).get(enteredRoom) as { id: number; code: string; unitDetails: string } | undefined;
+    const existing = suppliedId
+      ? database.prepare("SELECT payload FROM operational_records WHERE kind='housekeeping' AND record_key=?").get(key) as { payload: string } | undefined
+      : undefined;
+    if (suppliedId && !existing) throw new Error("Housekeeping task not found. Refresh the task board and try again.");
+    if (!unit && !existing) throw new Error("Choose an active room number from the suggestions.");
+
+    const room = unit?.code || enteredRoom;
+    const payload = { ...record, id: key, room, task, status, priority: String(record.priority || "normal") };
+    database.prepare(`INSERT INTO operational_records(kind,record_key,payload) VALUES('housekeeping',?,?)
+      ON CONFLICT(kind,record_key) DO UPDATE SET payload=excluded.payload,updated_at=CURRENT_TIMESTAMP`)
+      .run(key, JSON.stringify(payload));
+
+    if (unit) {
+      const unitDetails = JSON.parse(unit.unitDetails || "{}") as Record<string, unknown>;
+      const currentStatus = String(unitDetails.operationalStatus || "available");
+      const otherOpenTask = Boolean(database.prepare(`SELECT 1 FROM operational_records
+        WHERE kind='housekeeping' AND record_key<>? AND json_extract(payload,'$.room')=?
+        AND COALESCE(json_extract(payload,'$.status'),'reported') NOT IN ('ready','done') LIMIT 1`).get(key, room));
+      const nextRoomStatus = ["maintenance", "out-of-service", "blocked"].includes(currentStatus)
+        ? currentStatus
+        : status === "ready" || status === "done"
+          ? otherOpenTask ? "dirty" : "available"
+          : "dirty";
+      if (nextRoomStatus !== currentStatus) {
+        database.prepare("UPDATE room_units SET unit_details=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .run(JSON.stringify({ ...unitDetails, operationalStatus: nextRoomStatus }), unit.id);
+        recordAudit("room.unit_operational_status_changed", "room_unit", String(unit.id), {
+          code: room, operationalStatus: nextRoomStatus, housekeepingTask: key,
+        }, actor);
+      }
+    }
+
+    recordAudit(existing ? "housekeeping.task_updated" : "housekeeping.task_created", "housekeeping", key, payload, actor);
+    database.exec("COMMIT");
+    return payload;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function getLinkedReservation(reference: string) {

@@ -117,6 +117,8 @@ The protected Operations → Notifications workspace and the top-bar bell show n
 
 The staff workspace also includes **Check-outs Today** (`/operations/checkouts`). It reports the Nairobi-local date and exact guest total for checked-in reservations departing that day, and lists each reservation with the guest, contact details, assigned physical room codes, stay dates, and status. Daily checkout notifications are deduplicated and open this page when selected.
 
+Operations → Housekeeping uses active room numbers from the room register for typed suggestions. Checking a guest out creates a high-priority departure-clean task for each physical room assigned to the reservation, linked to its guest and reservation. Rooms with open housekeeping tasks are marked dirty and excluded from new availability; marking the final task ready or complete returns the room to available. The task board shows open and urgent work, assignment, due dates, and room status. Existing tasks for older records remain visible.
+
 ## Validation
 
 ```powershell
