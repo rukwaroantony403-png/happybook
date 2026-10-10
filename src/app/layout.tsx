@@ -3,7 +3,7 @@ import "./operations.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.HOTEL_SITE_URL || "https://booking.happylandhoteldiani.co.ke"),
+  metadataBase: new URL(process.env.HOTEL_SITE_URL || "https://portal.happylandhoteldiani.co.ke"),
   title: {
     default: "HappyLand Hotel Diani | Hotel Operations",
     template: "%s | HappyLand Hotel Diani",

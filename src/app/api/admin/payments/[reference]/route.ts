@@ -1,7 +1,21 @@
 import { canVerifyPayments, getStaffSession } from "@/lib/admin-auth";
-import { verifyHotelPayment } from "@/lib/booking-store";
+import { deleteHotelPaymentRecord, verifyHotelPayment } from "@/lib/booking-store";
 
 export const runtime = "nodejs";
+
+export async function DELETE(request: Request, context: RouteContext<"/api/admin/payments/[reference]">) {
+  const staff = getStaffSession(request);
+  if (!staff) return Response.json({ error: "Staff authentication required." }, { status: 401 });
+  if (staff.role !== "admin") return Response.json({ error: "Only administrators can permanently delete payment records." }, { status: 403 });
+  const { reference } = await context.params;
+  try {
+    if (!deleteHotelPaymentRecord(reference, staff.fullName)) return Response.json({ error: "Payment not found." }, { status: 404 });
+    return Response.json({ deleted: true }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("Could not delete payment record", error);
+    return Response.json({ error: "Payment could not be deleted." }, { status: 500 });
+  }
+}
 
 export async function PATCH(request: Request, context: RouteContext<"/api/admin/payments/[reference]">) {
   const staff = getStaffSession(request);

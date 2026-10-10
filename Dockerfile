@@ -8,7 +8,7 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
-ARG HOTEL_SITE_URL=https://booking.happylandhoteldiani.co.ke
+ARG HOTEL_SITE_URL=https://portal.happylandhoteldiani.co.ke
 ENV HOTEL_SITE_URL=${HOTEL_SITE_URL}
 RUN npm run build
 

@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Provide valid future check-in and check-out dates and a guest count from 1 to 20." }, { status: 400 });
   }
   const snapshot = getPublicHotelSnapshot();
-  const siteUrl = new URL(process.env.HOTEL_SITE_URL || "https://booking.happylandhoteldiani.co.ke");
+  const siteUrl = new URL(process.env.HOTEL_SITE_URL || "https://portal.happylandhoteldiani.co.ke");
   const absoluteAssetUrl = (asset: string) => asset.startsWith("/") && !asset.startsWith("//")
     ? new URL(asset, siteUrl).toString()
     : asset;

@@ -747,6 +747,67 @@ export function cancelReservation(reference: string) {
   return result.changes > 0;
 }
 
+export function deleteReservationRecord(reference: string, actor: string) {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const reservation = database.prepare(`SELECT id,guest_name AS guestName,guest_email AS guestEmail,status
+      FROM reservations WHERE reference=?`).get(reference) as
+      { id: number; guestName: string; guestEmail: string; status: string } | undefined;
+    if (!reservation) {
+      database.exec("ROLLBACK");
+      return null;
+    }
+    const payments = database.prepare(`SELECT reference,receipt_number AS receiptNumber,amount_ksh AS amountKsh,status
+      FROM hotel_payments WHERE reservation_reference=?`).all(reference) as
+      { reference: string; receiptNumber: string | null; amountKsh: number; status: string }[];
+    const charges = database.prepare("SELECT COUNT(*) AS count FROM folio_charges WHERE reservation_reference=?").get(reference) as { count: number };
+    database.prepare("DELETE FROM staff_notifications WHERE entity_key=? OR entity_key IN (SELECT reference FROM hotel_payments WHERE reservation_reference=?)")
+      .run(reference, reference);
+    database.prepare("DELETE FROM hotel_payments WHERE reservation_reference=?").run(reference);
+    database.prepare("DELETE FROM folio_charges WHERE reservation_reference=?").run(reference);
+    database.prepare("DELETE FROM reservations WHERE reference=?").run(reference);
+    recordAudit("reservation.deleted", "reservation", reference, {
+      guestName: reservation.guestName,
+      guestEmail: reservation.guestEmail,
+      status: reservation.status,
+      paymentCount: payments.length,
+      payments,
+      folioChargeCount: charges.count,
+    }, actor);
+    database.exec("COMMIT");
+    return { paymentCount: payments.length, folioChargeCount: charges.count };
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function deleteHotelPaymentRecord(reference: string, actor: string) {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const payment = database.prepare(`SELECT p.reference,p.reservation_reference AS reservationReference,
+      p.receipt_number AS receiptNumber,p.amount_ksh AS amountKsh,p.method,p.status,
+      r.guest_name AS guestName,r.guest_email AS guestEmail
+      FROM hotel_payments p JOIN reservations r ON r.reference=p.reservation_reference
+      WHERE p.reference=?`).get(reference) as {
+        reference: string; reservationReference: string; receiptNumber: string | null;
+        amountKsh: number; method: string; status: string; guestName: string; guestEmail: string;
+      } | undefined;
+    if (!payment) {
+      database.exec("ROLLBACK");
+      return false;
+    }
+    database.prepare("DELETE FROM staff_notifications WHERE entity_key=? AND type='payment'").run(reference);
+    database.prepare("DELETE FROM hotel_payments WHERE reference=?").run(reference);
+    recordAudit("payment.deleted", "payment", reference, payment, actor);
+    database.exec("COMMIT");
+    return true;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 export function getDashboardSnapshot(today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) {
   const inventory = database.prepare("SELECT COUNT(*) AS rooms FROM room_units u JOIN rooms r ON r.slug=u.room_slug WHERE u.active=1 AND r.active=1").get() as { rooms: number };
   const occupied = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status='checked-in' AND check_in<=? AND check_out>?").get(today, today) as { count: number };

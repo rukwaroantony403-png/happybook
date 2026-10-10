@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap');
 @import "./operations-notifications.css";
 @import "./guest-profile.css";
+.record-delete-btn{min-height:29px;border:1px solid #efd7d0;border-radius:5px;padding:0 10px;color:#9b3f31;background:#fff8f6;font-size:9px;font-weight:700;cursor:pointer;white-space:nowrap}.record-delete-btn:hover{border-color:#d7a99e;background:#fff0ec}.record-delete-btn:focus-visible{outline:2px solid #a94939;outline-offset:2px}
 .room-management.no-delete .danger-btn,.room-management.no-delete .room-gallery-remove,.room-management.no-delete .room-detail-photo button{display:none!important}
 .staff-users-panel{margin-bottom:18px;border:1px solid #e5ebe5;border-radius:var(--op-radius);padding:20px;background:var(--op-paper);box-shadow:var(--op-shadow)}
 .staff-users-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}

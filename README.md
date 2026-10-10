@@ -1,6 +1,6 @@
 # HappyLand Hotel Diani — Staff Booking & Operations
 
-The repository root is the private staff booking and hotel operations system. Deploy it at `https://booking.happylandhoteldiani.co.ke`. The separate public website is in [`dni/`](./dni/) and deploys independently at `https://happylandhoteldiani.co.ke`.
+The repository root is the private staff booking and hotel operations system. Deploy it at `https://portal.happylandhoteldiani.co.ke`. The separate public website is maintained in `C:\dni` and deploys independently at `https://happylandhoteldiani.co.ke`.
 
 ## Run locally
 
@@ -13,40 +13,28 @@ The first server request creates `data/happyland.sqlite` and initializes the sup
 
 ## Production deployment
 
-Both apps include independent Dockerfiles and `.dockerignore` files for Coolify's Dockerfile build pack. The root Dockerfile builds only the staff app; `dni/` has its own Dockerfile and can be moved/deployed separately without moving or merging its source into the staff app. Use the instructions in each app's README when setting them up independently.
+The staff project has a Dockerfile and `.dockerignore` for Coolify's Dockerfile build pack. The public website is a separate project in `C:\dni`, with its own Dockerfile and deployment. Keep the applications independent and use the website project's README for its Coolify setup.
 
 ### Coolify: staff booking system
 
 1. In Coolify, create an application from the Git repository and select the production branch. Select **Dockerfile** as the build pack.
 2. Set **Base Directory** to `/` (the repository root) and **Dockerfile Location** to `/Dockerfile`. Do not select `dni/` for the staff service. The container listens on port `3000`.
 3. In the application's **Storages** section, add a persistent volume with container mount path `/app/data`. The container runs as the unprivileged `node` user (UID/GID 1000); ensure a host-path volume is writable by that user. Never use ephemeral storage for this path. The Docker image sets `HOTEL_DATABASE_PATH=/app/data/happyland.sqlite` and `HOTEL_MEDIA_PATH=/app/data/room-media`.
-4. Set the application domain to `https://booking.happylandhoteldiani.co.ke` and enable Coolify's HTTPS proxy/certificate.
+4. Set the application domain to `https://portal.happylandhoteldiani.co.ke` and enable Coolify's HTTPS proxy/certificate.
 5. Add these **runtime** environment variables in Coolify:
    - `ADMIN_USERNAME`, `ADMIN_NAME`, `ADMIN_PASSWORD`, and a unique random `ADMIN_SESSION_SECRET` of at least 32 characters. Do not use the example values or commit these secrets.
-   - `HOTEL_SITE_URL=https://booking.happylandhoteldiani.co.ke` (also add as a build-time variable)
+   - `HOTEL_SITE_URL=https://portal.happylandhoteldiani.co.ke` (also add as a build-time variable)
    - `HOTEL_DATABASE_PATH=/app/data/happyland.sqlite`
    - `HOTEL_MEDIA_PATH=/app/data/room-media`
    - Optional SMTP settings: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, and `HOTEL_NOTIFICATION_EMAIL`.
-6. Deploy and check the deployment logs. Test that `/login` loads, sign in with the configured administrator, and confirm `https://booking.happylandhoteldiani.co.ke/api/public/hotel` returns public hotel content.
+6. Deploy and check the deployment logs. Test that `/login` loads, sign in with the configured administrator, and confirm `https://portal.happylandhoteldiani.co.ke/api/public/hotel` returns public hotel content.
 7. Back up the mounted volume regularly, including both the SQLite database and room media. Restore them together when migrating. Do not run multiple staff app replicas against one SQLite file.
 
-### Coolify: separate public website
-
-1. Create a **second** Coolify application from the same Git repository and production branch; do not combine it with the staff app. Select **Dockerfile** as the build pack.
-2. While the website remains in this repository, set **Base Directory** to `/dni` and **Dockerfile Location** to `/Dockerfile` (relative to that base). Its Dockerfile and `.dockerignore` are already inside `dni/`. If you later move the website to its own repository/root, update this app's Base Directory to `/` and keep its Dockerfile at the new root; do not move or change the staff app.
-3. Set the app domain to `https://happylandhoteldiani.co.ke`, enable HTTPS, and expose container port `3000`. Do not attach a database/media volume to this website.
-4. Add these variables in Coolify as both **build-time and runtime** values:
-   - `HOTEL_SITE_URL=https://happylandhoteldiani.co.ke`
-   - `BOOKING_SYSTEM_URL=https://booking.happylandhoteldiani.co.ke` (server-only; never name it `NEXT_PUBLIC_*`)
-   - `HOTEL_IMAGE_HOSTS` (optional comma-separated hostnames when staff room images use additional HTTPS hosts)
-5. Deploy the staff app first, then deploy the website. Confirm the website container can reach the staff domain over HTTPS. The website proxies live inventory and guest submissions to the staff app; do not add a database or local inventory volume to it.
-6. After deployment, check that the homepage and room pages load live room content, then submit a test enquiry or booking only if using a safe test setup. Verify public room photos load through the staff service.
-
-Configure DNS A/AAAA records for both hostnames to the Coolify server and allow inbound ports 80 and 443. Keep the two Coolify apps separate even if they initially use the same Git repository. Do not select static export: both apps require a Node.js server, and the staff system additionally requires Node.js 22.5+ for `node:sqlite`.
+Configure DNS A/AAAA records for `portal.happylandhoteldiani.co.ke` and `happylandhoteldiani.co.ke` to the Coolify server and allow inbound ports 80 and 443. Keep the two Coolify apps separate. Do not select static export: the staff system requires a Node.js server and Node.js 22.5+ for `node:sqlite`.
 
 ## System boundary and synchronization — priority
 
-This app is the single source of truth for inventory, rates, availability, published room details/photos, enquiries, and reservations. The public website fetches its published content from `GET /api/public/hotel` and proxies visitor availability, enquiry, and booking requests to this system. Do not create a second live inventory/reservation store in `dni/` or copy SQLite/media files between the two deployments.
+This app is the single source of truth for inventory, rates, availability, published room details/photos, enquiries, and reservations. The public website in the separate `C:\dni` project fetches its published content from `GET /api/public/hotel` and proxies visitor availability, enquiry, and booking requests to this system. Do not create a second live inventory/reservation store in the website or copy SQLite/media files between the two deployments.
 
 Website bookings are validated and checked again against current stock inside a SQLite immediate transaction here, then saved with source `Website`. Staff see them in Operations → Reservations and use this system to update/cancel them. Room descriptions and photo URLs are maintained in Operations → Rooms; public changes flow to the website from the public hotel API without a website redeploy. Keep API payloads and photo URLs compatible across both projects.
 
@@ -70,6 +58,8 @@ Room photos are uploaded to one folder per physical room category. The default f
 The staff dashboard is at `/`; workspaces are under `/operations/*` (reservations, notifications, check-outs, rooms, guests, front desk, payments, housekeeping, maintenance, guest services, inventory, reports, expenses, suppliers, and settings). The Next.js Proxy redirects all page requests without a valid signed eight-hour session to `/login`, preserving the requested internal path for after sign-in. `/login`, static assets, and API routes are excluded from page redirects; staff APIs independently require a valid staff session and public booking APIs remain available to the separate website. Only administrators can access Settings or manage staff accounts. A maximum of two active administrator accounts is allowed, counting the environment-configured bootstrap administrator when it is a separate account; this limit does not apply to other roles. Admins and managers can verify payments, while receptionists cannot; chief accountants can verify payments. Managers have full system access except deleting rooms or reservations. The person who records a payment cannot verify that same payment. Reservation changes, rates, payments, verifications, folio charges, and operational records are audited.
 
 In Reservations, each active stay shows its remaining balance and has a **Record payment** action that carries the exact reservation reference into the payment form. Guests can submit partial/full M-Pesa amounts and transaction codes from their booking confirmation after contacting the hotel to confirm current payment details. The booking reference and guest email must match, amounts cannot exceed the remaining recordable balance, and duplicate transaction codes are rejected. Guest submissions are saved as pending and consume available-to-record balance until an independent verifier reviews them. The verifier can verify or reject a payment with a required reason; rejected payments are audited and no longer reserve any of the guest's available balance. The Payments workspace shows room and service charges, verified and pending amounts, balance due, and amount available to record.
+
+Administrators can permanently delete individual reservations from Operations → Reservations and payments from Operations → Payments. Deleting a reservation also deletes its linked payment records and folio charges, releases its room-unit locks, removes linked reservation/payment notifications, and writes an audit event. Deleting a payment updates the reservation's balance and is audited. Other staff roles cannot use these delete actions, and the server enforces the role restriction. Deletion is permanent; retain a database backup before using it.
 
 Every saved payment receives a unique, database-backed receipt number and an immutable charge/stay snapshot. The payment form opens its saved receipt preview after recording; Payments also provides Preview and Print actions for existing records, including guest-submitted M-Pesa payments after staff verification. Receipts show the actual transaction amount (including partial payments), itemized stay and posted folio charges, verified-to-date payments, pending payments, and the current remaining balance; an unverified submission is clearly marked and its balance is labelled as conditional on verification. The receipt identifies the staff member who recorded it and does not require a signature. For printing, select **A4**, **Portrait**, **Actual size / 100%**, and **No margins**; disable browser headers and footers. The 210 × 99 mm receipt is positioned at the top of the A4 page for trimming. Keep the A4 page size selected; the receipt stylesheet sets the A4 page and zero margins.
 
