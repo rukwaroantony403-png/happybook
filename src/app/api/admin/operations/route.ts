@@ -1,4 +1,4 @@
-import { getAdminSnapshot, getAuditTrail, getDashboardSnapshot, getFinancialRecords, getStaffNotifications, listOperationalRecords, saveOperationalRecord } from "@/lib/booking-store";
+import { getAdminSnapshot, getAuditTrail, getDashboardSnapshot, getFinancialRecords, getInventoryMovements, getStaffNotifications, listOperationalRecords, saveOperationalRecord } from "@/lib/booking-store";
 import { getStaffSession } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (kind === "settings" && staff.role !== "admin") return Response.json({ error: "Only administrators can access settings." }, { status: 403 });
   if (kind === "all") {
     const visibleKinds = kinds.filter((key) => key !== "settings" || staff.role === "admin");
-    return Response.json({ ...getAdminSnapshot(), ...getStaffNotifications(), staff, dashboard: getDashboardSnapshot(), records: Object.fromEntries(visibleKinds.map((key) => [key, listOperationalRecords(key)])), financial: getFinancialRecords(), audit: getAuditTrail() }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json({ ...getAdminSnapshot(), ...getStaffNotifications(), staff, dashboard: getDashboardSnapshot(), records: Object.fromEntries(visibleKinds.map((key) => [key, listOperationalRecords(key)])), inventoryMovements: getInventoryMovements(), financial: getFinancialRecords(), audit: getAuditTrail() }, { headers: { "Cache-Control": "no-store" } });
   }
   if (kind === "financial") return Response.json(getFinancialRecords(), { headers: { "Cache-Control": "no-store" } });
   if (kind === "audit") return Response.json({ records: getAuditTrail() }, { headers: { "Cache-Control": "no-store" } });
@@ -36,10 +36,11 @@ export async function POST(request: Request) {
   const amount = Number(record.amountKsh);
   const quantity = Number(record.quantity);
   const reorderAt = Number(record.reorderAt);
+  const unitCost = Number(record.unitCostKsh);
   if (kind === "room") return Response.json({ error: "Save room inventory through the room setup endpoint." }, { status: 400 });
   if (kind === "guest" && (!name || name.length > 120 || !required("email") || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(record.email).trim()) || String(record.email).trim().length > 254 || String(record.phone || "").length > 40 || String(record.nationality || "").length > 100 || String(record.idDocument || "").length > 200 || String(record.preferences || "").length > 500 || String(record.notes || "").length > 1000)) return Response.json({ error: "Enter a valid guest name, email and profile details." }, { status: 400 });
   if (kind === "expense" && (!name || name.length > 200 || !Number.isSafeInteger(amount) || amount < 1 || amount > 100000000 || !required("category"))) return Response.json({ error: "Enter an expense description, category and valid KSh amount." }, { status: 400 });
-  if (kind === "inventory" && (!name || name.length > 200 || !required("category") || !Number.isSafeInteger(quantity) || quantity < 0 || !Number.isSafeInteger(reorderAt) || reorderAt < 0)) return Response.json({ error: "Enter an item name, category, quantity and reorder level." }, { status: 400 });
+  if (kind === "inventory" && (!name || name.length > 200 || !required("category") || !required("unit") || String(record.unit).length > 40 || String(record.sku || "").length > 80 || String(record.description || "").length > 500 || String(record.supplier || "").length > 200 || !Number.isSafeInteger(quantity) || quantity < 0 || quantity > 1000000 || !Number.isSafeInteger(reorderAt) || reorderAt < 0 || reorderAt > 1000000 || !Number.isSafeInteger(unitCost) || unitCost < 0 || unitCost > 100000000)) return Response.json({ error: "Enter a valid item name, category, unit, quantity, reorder level and unit cost." }, { status: 400 });
   if (kind === "supplier" && (!name || name.length > 200)) return Response.json({ error: "Enter a supplier name." }, { status: 400 });
   if (kind === "housekeeping" && (!required("room") || !required("task"))) return Response.json({ error: "Enter a room and housekeeping task." }, { status: 400 });
   if (kind === "maintenance" && (!required("room") || (!required("issue") && !required("description")))) return Response.json({ error: "Enter a room and maintenance issue." }, { status: 400 });

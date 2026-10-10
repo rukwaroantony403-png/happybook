@@ -39,6 +39,7 @@ export async function POST(request: Request) {
     return Response.json({
       reservation: {
         reference: booking.reference,
+        status: booking.status,
         roomName: booking.roomName,
         checkIn,
         checkOut,

@@ -31,8 +31,8 @@ export async function sendBookingEmails(booking: {
     mailer.sendMail({
       from,
       to: booking.email,
-      subject: `HappyLand booking confirmed · ${booking.reference}`,
-      text: `Hello ${booking.name},\n\nYour reservation is confirmed.\nReference: ${booking.reference}\nRoom: ${booking.roomName}\nDates: ${booking.checkIn} to ${booking.checkOut}\nGuests: ${booking.guests}\nStay total: KES ${total}\n\nTo make a partial or full M-Pesa payment, first call +254 729 896 065 to confirm the hotel's current payment details. After paying, submit the amount and M-Pesa transaction code for staff verification at https://happylandhoteldiani.co.ke/payment?reference=${encodeURIComponent(booking.reference)}.\n\nA payment is not counted as received until hotel staff verify the transaction.`,
+      subject: `Booking request received · ${booking.reference}`,
+      text: `Hello ${booking.name},\n\nWe have received your booking request. The hotel team will review it and contact you to confirm availability.\nReference: ${booking.reference}\nRoom: ${booking.roomName}\nDates: ${booking.checkIn} to ${booking.checkOut}\nGuests: ${booking.guests}\nEstimated stay total: KES ${total}\n\nPlease wait for hotel confirmation before making a payment. For urgent questions, contact +254 729 896 065.`,
     }),
     mailer.sendMail({
       from,
@@ -41,6 +41,33 @@ export async function sendBookingEmails(booking: {
       text: `Reference: ${booking.reference}\nGuest: ${booking.name}\nEmail: ${booking.email}\nRoom: ${booking.roomName}\nDates: ${booking.checkIn} to ${booking.checkOut}\nGuests: ${booking.guests}\nStay total: KES ${total}`,
     }),
   ]);
+  return true;
+}
+
+export async function sendReservationStatusEmail(reservation: {
+  reference: string;
+  status: string;
+  name: string;
+  email: string;
+  roomName: string;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  totalKsh: number;
+}) {
+  const mailer = getMailer();
+  const from = process.env.SMTP_FROM;
+  if (!mailer || !from || !["confirmed", "cancelled"].includes(reservation.status)) return false;
+  const confirmed = reservation.status === "confirmed";
+  const total = new Intl.NumberFormat("en-KE").format(reservation.totalKsh);
+  await mailer.sendMail({
+    from,
+    to: reservation.email,
+    subject: confirmed ? `Booking confirmed · ${reservation.reference}` : `Booking update · ${reservation.reference}`,
+    text: confirmed
+      ? `Hello ${reservation.name},\n\nThe hotel has confirmed your reservation.\nReference: ${reservation.reference}\nRoom: ${reservation.roomName}\nDates: ${reservation.checkIn} to ${reservation.checkOut}\nGuests: ${reservation.guests}\nStay total: KES ${total}\n\nTo make a partial or full M-Pesa payment, first call +254 729 896 065 to confirm the hotel's current payment details. After paying, submit the amount and transaction code at https://happylandhoteldiani.co.ke/payment?reference=${encodeURIComponent(reservation.reference)}. Staff will verify each payment before it counts as paid.`
+      : `Hello ${reservation.name},\n\nThe hotel could not confirm your booking request and has released the requested room.\nReference: ${reservation.reference}\nRoom requested: ${reservation.roomName}\nDates: ${reservation.checkIn} to ${reservation.checkOut}\n\nPlease contact +254 729 896 065 if you would like help finding another option.`,
+  });
   return true;
 }
 

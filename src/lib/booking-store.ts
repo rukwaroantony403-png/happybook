@@ -145,6 +145,21 @@ database.exec(`
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(kind, record_key)
   );
+  CREATE TABLE IF NOT EXISTS inventory_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_key TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('opening','receive','issue','adjustment')),
+    quantity_delta INTEGER NOT NULL,
+    quantity_after INTEGER NOT NULL CHECK (quantity_after >= 0),
+    unit_cost_ksh INTEGER NOT NULL DEFAULT 0,
+    reason TEXT NOT NULL,
+    supplier TEXT NOT NULL DEFAULT '',
+    reference TEXT NOT NULL DEFAULT '',
+    actor TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS inventory_movements_item_date ON inventory_movements(item_key, id DESC);
   CREATE TABLE IF NOT EXISTS guest_profiles (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     full_name TEXT NOT NULL,
@@ -216,6 +231,19 @@ database.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+const existingInventoryItems = database.prepare("SELECT record_key,payload FROM operational_records WHERE kind='inventory'").all() as { record_key: string; payload: string }[];
+const insertOpeningInventoryMovement = database.prepare(`INSERT INTO inventory_movements
+  (item_key,item_name,movement_type,quantity_delta,quantity_after,unit_cost_ksh,reason,actor)
+  VALUES(?,?,'opening',?,?,?,'Opening balance migrated from the existing stock register','System migration')`);
+for (const item of existingInventoryItems) {
+  if (database.prepare("SELECT 1 FROM inventory_movements WHERE item_key=? LIMIT 1").get(item.record_key)) continue;
+  const payload = JSON.parse(item.payload) as Record<string, unknown>;
+  const quantity = Number(payload.quantity);
+  if (Number.isSafeInteger(quantity) && quantity >= 0) {
+    insertOpeningInventoryMovement.run(item.record_key, String(payload.name || item.record_key), quantity, quantity, Number(payload.unitCostKsh) || 0);
+  }
+}
 
 const roomColumns = database.prepare("PRAGMA table_info(rooms)").all() as { name: string }[];
 if (!roomColumns.some((column) => column.name === "room_details")) database.exec("ALTER TABLE rooms ADD COLUMN room_details TEXT NOT NULL DEFAULT '{}'");
@@ -586,7 +614,7 @@ export function getAdminSnapshot() {
       LEFT JOIN room_combinations combinations ON combinations.slug=COALESCE(NULLIF(r.accommodation_slug,''),r.room_slug)
       LEFT JOIN reservation_room_units linked ON linked.reservation_id=r.id
       LEFT JOIN room_units linked_units ON linked_units.id=linked.room_unit_id
-      GROUP BY r.id ORDER BY r.id DESC LIMIT 100`).all(),
+      GROUP BY r.id ORDER BY CASE WHEN r.status IN ('pending','inquiry') THEN 0 ELSE 1 END,r.id DESC LIMIT 100`).all(),
     enquiries: database.prepare(`SELECT id, guest_name AS name, guest_email AS email, guest_phone AS phone,
       preferred_dates AS dates, message, created_at AS createdAt FROM enquiries ORDER BY id DESC LIMIT 100`).all(),
   };
@@ -811,7 +839,7 @@ export function deleteHotelPaymentRecord(reference: string, actor: string) {
 export function getDashboardSnapshot(today = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())) {
   const inventory = database.prepare("SELECT COUNT(*) AS rooms FROM room_units u JOIN rooms r ON r.slug=u.room_slug WHERE u.active=1 AND r.active=1").get() as { rooms: number };
   const occupied = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status='checked-in' AND check_in<=? AND check_out>?").get(today, today) as { count: number };
-  const arrivals = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status IN ('pending','confirmed') AND check_in=?").get(today) as { count: number };
+  const arrivals = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status='confirmed' AND check_in=?").get(today) as { count: number };
   const departures = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status='checked-in' AND check_out=?").get(today) as { count: number };
   const pending = database.prepare("SELECT COUNT(*) AS count FROM reservations WHERE status IN ('inquiry','pending')").get() as { count: number };
   const revenue = database.prepare("SELECT COALESCE(SUM(amount_ksh),0) AS amount FROM hotel_payments WHERE status='verified' AND date(verified_at,'+3 hours')=?").get(today) as { amount: number };
@@ -823,27 +851,44 @@ export function getDashboardSnapshot(today = new Intl.DateTimeFormat("en-CA", { 
   return { date: today, totalRooms: inventory.rooms, occupiedRooms: Math.min(occupied.count, inventory.rooms), availableRooms: Math.max(0, inventory.rooms - occupied.count), arrivals: arrivals.count, departures: departures.count, pendingReservations: pending.count, revenueKsh: revenue.amount, outstandingKsh: outstanding.amount, occupancyRate: inventory.rooms ? Math.round(occupied.count / inventory.rooms * 100) : 0, reservationCount: counts.reservations };
 }
 
-export function updateReservationStatus(reference: string, status: string) {
-  const supported = new Set(["inquiry", "pending", "confirmed", "checked-in", "checked-out", "no-show", "cancelled"]);
-  if (!supported.has(status)) return false;
-  const reservation = database.prepare(`SELECT reference,guest_name AS guest,room_slug AS room_slug,check_out AS checkOut
-    FROM reservations WHERE reference=?`).get(reference) as { reference: string; guest: string; room_slug: string; checkOut: string } | undefined;
-  const result = database.prepare("UPDATE reservations SET status=? WHERE reference=? AND status != 'cancelled'").run(status, reference);
+export function updateReservationStatus(reference: string, status: string, actor = "Hotel Manager") {
+  const transitions: Record<string, string[]> = {
+    inquiry: ["pending", "confirmed", "cancelled"],
+    pending: ["confirmed", "cancelled"],
+    confirmed: ["checked-in", "no-show", "cancelled"],
+    "checked-in": ["checked-out"],
+  };
+  const reservation = database.prepare(`SELECT reference,guest_name AS guest,room_slug AS roomSlug,check_out AS checkOut,status
+    FROM reservations WHERE reference=?`).get(reference) as { reference: string; guest: string; roomSlug: string; checkOut: string; status: string } | undefined;
+  if (!reservation || !transitions[reservation.status]?.includes(status)) return false;
+  const result = database.prepare("UPDATE reservations SET status=? WHERE reference=? AND status=?").run(status, reference, reservation.status);
   if (result.changes) {
-    recordAudit("reservation.status_changed", "reservation", reference, { status });
-    if (status === "checked-out" && reservation) saveOperationalRecord("housekeeping", {
+    recordAudit("reservation.status_changed", "reservation", reference, { previousStatus: reservation.status, status }, actor);
+    if (status === "checked-out") saveOperationalRecord("housekeeping", {
       id: `turnover-${reference}`, reservationReference: reference, guest: reservation.guest,
-      roomType: reservation.room_slug, task: "Departure clean", status: "dirty", priority: "high",
-      checkOut: reservation.checkOut, createdBy: "Front desk",
-    });
+      roomType: reservation.roomSlug, task: "Departure clean", status: "dirty", priority: "high",
+      checkOut: reservation.checkOut, createdBy: actor,
+    }, actor);
   }
   return result.changes > 0;
 }
 
+export function getReservationStatusEmail(reference: string) {
+  return database.prepare(`SELECT r.reference,r.status,r.guest_name AS name,r.guest_email AS email,
+    r.check_in AS checkIn,r.check_out AS checkOut,r.guests,r.total_ksh AS totalKsh,
+    COALESCE(combinations.name,rooms.name,r.room_slug) AS roomName
+    FROM reservations r LEFT JOIN rooms ON rooms.slug=r.room_slug
+    LEFT JOIN room_combinations combinations ON combinations.slug=COALESCE(NULLIF(r.accommodation_slug,''),r.room_slug)
+    WHERE r.reference=?`).get(reference) as {
+      reference: string; status: string; name: string; email: string; checkIn: string; checkOut: string;
+      guests: number; totalKsh: number; roomName: string;
+    } | undefined;
+}
+
 const createReservation = database.prepare(`
   INSERT INTO reservations (reference, room_slug, room_unit_id, accommodation_slug, check_in, check_out, guests, guest_name, guest_email,
-    guest_phone, nightly_rate_ksh, total_ksh, source)
-  VALUES (@reference, @roomSlug, @roomUnitId, @accommodationSlug, @checkIn, @checkOut, @guests, @name, @email, @phone, @nightlyRateKsh, @totalKsh, @source)
+    guest_phone, nightly_rate_ksh, total_ksh, source, status)
+  VALUES (@reference, @roomSlug, @roomUnitId, @accommodationSlug, @checkIn, @checkOut, @guests, @name, @email, @phone, @nightlyRateKsh, @totalKsh, @source, @status)
 `);
 const findRoom = database.prepare("SELECT slug, name, inventory, max_guests, nightly_rate_ksh FROM rooms WHERE slug=? AND active=1");
 function reserve(input: BookingInput) {
@@ -882,13 +927,15 @@ function reserve(input: BookingInput) {
     nightlyRateKsh,
     totalKsh,
     source: input.source || "Website",
+    status: (input.source || "Website") === "Website" ? "pending" : "confirmed",
   });
   const reservationId = (database.prepare("SELECT id FROM reservations WHERE reference=?").get(reference) as { id: number }).id;
   const linkUnit = database.prepare("INSERT INTO reservation_room_units(reservation_id,room_unit_id) VALUES(?,?)");
   for (const unit of activeUnits) linkUnit.run(reservationId, unit.id);
-  recordAudit("reservation.created", "reservation", reference, { accommodation: input.roomSlug, roomName: accommodationName, roomUnits: activeUnits.map((unit) => unit.code), checkIn: input.checkIn, checkOut: input.checkOut, guests: input.guests, nightlyRateKsh, totalKsh, guestName: input.name, guestEmail: input.email, guestPhone: input.phone || "", source: input.source || "Website" });
+  const initialStatus = (input.source || "Website") === "Website" ? "pending" : "confirmed";
+  recordAudit("reservation.created", "reservation", reference, { accommodation: input.roomSlug, roomName: accommodationName, roomUnits: activeUnits.map((unit) => unit.code), checkIn: input.checkIn, checkOut: input.checkOut, guests: input.guests, nightlyRateKsh, totalKsh, guestName: input.name, guestEmail: input.email, guestPhone: input.phone || "", source: input.source || "Website", status: initialStatus });
   database.exec("COMMIT");
-  return { reference, roomName: accommodationName, roomCode: activeUnits[0].code, roomCodes: activeUnits.map((unit) => unit.code), nights, nightlyRateKsh, totalKsh };
+  return { reference, roomName: accommodationName, roomCode: activeUnits[0].code, roomCodes: activeUnits.map((unit) => unit.code), nights, nightlyRateKsh, totalKsh, status: initialStatus };
   } catch (error) { database.exec("ROLLBACK"); throw error; }
 }
 
@@ -1039,10 +1086,92 @@ export function listOperationalRecords(kind: OperationalKind) {
     });
 }
 
+function saveInventoryItem(record: Record<string, unknown>, actor: string) {
+  const suppliedId = typeof record.id === "string" && record.id ? record.id : "";
+  const key = suppliedId || `inventory-${randomBytes(6).toString("hex").toUpperCase()}`;
+  const existing = suppliedId
+    ? database.prepare("SELECT payload FROM operational_records WHERE kind='inventory' AND record_key=?").get(key) as { payload: string } | undefined
+    : undefined;
+  const previous = existing ? JSON.parse(existing.payload) as Record<string, unknown> : null;
+  const openingQuantity = Number(record.quantity);
+  const quantity = previous ? Number(previous.quantity) : openingQuantity;
+  const payload: Record<string, unknown> = {
+    ...(previous || {}),
+    ...record,
+    id: key,
+    quantity,
+    unit: String(record.unit || previous?.unit || "pieces"),
+    sku: String(record.sku || previous?.sku || ""),
+    description: String(record.description || previous?.description || ""),
+    supplier: String(record.supplier || previous?.supplier || ""),
+  };
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.prepare(`INSERT INTO operational_records (kind, record_key, payload) VALUES ('inventory', ?, ?)
+      ON CONFLICT(kind, record_key) DO UPDATE SET payload=excluded.payload, updated_at=CURRENT_TIMESTAMP`)
+      .run(key, JSON.stringify(payload));
+    if (!previous) {
+      database.prepare(`INSERT INTO inventory_movements
+        (item_key,item_name,movement_type,quantity_delta,quantity_after,unit_cost_ksh,reason,supplier,actor)
+        VALUES(?,?,'opening',?,?,?,?,'',?)`)
+        .run(key, String(payload.name), openingQuantity, openingQuantity, Number(payload.unitCostKsh) || 0, "Opening stock", actor);
+    }
+    recordAudit(previous ? "inventory.item_updated" : "inventory.item_created", "inventory", key, payload, actor);
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+  return payload;
+}
+
+export function moveInventoryStock(itemKey: string, movementType: "receive" | "issue" | "adjustment", quantity: number, reason: string, actor: string, reference = "") {
+  if (!Number.isSafeInteger(quantity) || quantity === 0 || Math.abs(quantity) > 1000000) throw new Error("Enter a valid non-zero stock quantity.");
+  if (movementType === "receive" && quantity < 0) throw new Error("Received stock quantity must be positive.");
+  if (movementType === "issue" && quantity > 0) throw new Error("Issued stock quantity must be positive.");
+  if (!reason.trim() || reason.trim().length > 500 || reference.length > 120) throw new Error("Enter a reason and a valid reference.");
+
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    const row = database.prepare("SELECT payload FROM operational_records WHERE kind='inventory' AND record_key=?").get(itemKey) as { payload: string } | undefined;
+    if (!row) throw new Error("Inventory item not found.");
+    const item = JSON.parse(row.payload) as Record<string, unknown>;
+    const currentQuantity = Number(item.quantity);
+    const newQuantity = currentQuantity + quantity;
+    if (!Number.isSafeInteger(newQuantity) || newQuantity < 0 || newQuantity > 1000000) throw new Error("The movement would result in an invalid stock balance.");
+    const payload = { ...item, quantity: newQuantity };
+    database.prepare(`UPDATE operational_records SET payload=?,updated_at=CURRENT_TIMESTAMP
+      WHERE kind='inventory' AND record_key=?`).run(JSON.stringify(payload), itemKey);
+    database.prepare(`INSERT INTO inventory_movements
+      (item_key,item_name,movement_type,quantity_delta,quantity_after,unit_cost_ksh,reason,supplier,reference,actor)
+      VALUES(?,?,?,?,?,?,?,?,?,?)`).run(
+      itemKey, String(item.name), movementType, quantity, newQuantity, Number(item.unitCostKsh) || 0,
+      reason.trim(), String(item.supplier || ""), reference.trim(), actor,
+    );
+    recordAudit(`inventory.stock_${movementType}`, "inventory", itemKey, {
+      itemName: item.name, movementType, quantityDelta: quantity, quantityBefore: currentQuantity,
+      quantityAfter: newQuantity, reason: reason.trim(), reference: reference.trim(),
+    }, actor);
+    database.exec("COMMIT");
+    return payload;
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+export function getInventoryMovements(limit = 200) {
+  return database.prepare(`SELECT id,item_key AS itemKey,item_name AS itemName,movement_type AS movementType,
+    quantity_delta AS quantityDelta,quantity_after AS quantityAfter,unit_cost_ksh AS unitCostKsh,
+    reason,supplier,reference,actor,created_at AS createdAt
+    FROM inventory_movements ORDER BY id DESC LIMIT ?`).all(limit);
+}
+
 export function saveOperationalRecord(kind: OperationalKind, record: Record<string, unknown>, actor = "Hotel Manager") {
   if (kind === "guest") return saveGuestProfile(record, actor);
   if (kind === "payment") return recordHotelPayment(record, actor);
   if (kind === "service" && typeof record.reservationReference === "string") return addFolioCharge(record, actor);
+  if (kind === "inventory") return saveInventoryItem(record, actor);
   const key = typeof record.id === "string" && record.id ? record.id : `${kind}-${randomBytes(6).toString("hex").toUpperCase()}`;
   const payload = { ...record, id: key };
   database.prepare(`INSERT INTO operational_records (kind, record_key, payload) VALUES (?, ?, ?)
@@ -1136,6 +1265,7 @@ export function recordGuestMpesaPayment(record: Record<string, unknown>) {
         status: string; serviceChargesKsh: number; verifiedPaymentsKsh: number; pendingPaymentsKsh: number;
       } | undefined;
     if (!reservation) throw new GuestPaymentError("We could not match that booking reference and email. Check them and try again.");
+    if (["inquiry", "pending"].includes(reservation.status)) throw new GuestPaymentError("Your booking is awaiting hotel confirmation. Please wait before submitting a payment.");
     if (["cancelled", "no-show"].includes(reservation.status)) throw new GuestPaymentError("This reservation is not eligible for a payment.");
 
     const totalChargesKsh = reservation.totalKsh + reservation.serviceChargesKsh;
@@ -1193,7 +1323,7 @@ export function getGuestPaymentSummary(record: Record<string, unknown>) {
   if (!/^[A-Z0-9-]{6,80}$/i.test(reservationReference) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
     throw new GuestPaymentError("Enter a valid booking reference and the email used for the reservation.");
   }
-  const reservation = database.prepare(`SELECT r.reference,r.check_in AS checkIn,r.check_out AS checkOut,
+  const reservation = database.prepare(`SELECT r.reference,r.check_in AS checkIn,r.check_out AS checkOut,r.status,
       COALESCE(combinations.name,rooms.name,r.room_slug) AS roomName,
       r.total_ksh + COALESCE((SELECT SUM(amount_ksh) FROM folio_charges WHERE reservation_reference=r.reference AND status='posted'),0) AS totalChargesKsh,
       COALESCE((SELECT SUM(amount_ksh) FROM hotel_payments WHERE reservation_reference=r.reference AND status='verified'),0) AS paidKsh,
@@ -1203,9 +1333,13 @@ export function getGuestPaymentSummary(record: Record<string, unknown>) {
     LEFT JOIN room_combinations combinations ON combinations.slug=COALESCE(NULLIF(r.accommodation_slug,''),r.room_slug)
     WHERE r.reference=? AND lower(r.guest_email)=?`).get(reservationReference, email) as {
       reference: string; checkIn: string; checkOut: string; roomName: string;
-      totalChargesKsh: number; paidKsh: number; pendingKsh: number;
+      status: string; totalChargesKsh: number; paidKsh: number; pendingKsh: number;
     } | undefined;
   if (!reservation) throw new GuestPaymentError("We could not match that booking reference and email. Check them and try again.");
+  if (reservation.status === "pending" || reservation.status === "inquiry") {
+    throw new GuestPaymentError("Your booking is awaiting hotel confirmation. Please wait for the hotel's confirmation before submitting a payment.");
+  }
+  if (["cancelled", "no-show"].includes(reservation.status)) throw new GuestPaymentError("This booking is not eligible for a payment.");
   const balanceDueKsh = Math.max(0, reservation.totalChargesKsh - reservation.paidKsh);
   const availableToRecordKsh = Math.max(0, balanceDueKsh - reservation.pendingKsh);
   return { ...reservation, balanceDueKsh, availableToRecordKsh };

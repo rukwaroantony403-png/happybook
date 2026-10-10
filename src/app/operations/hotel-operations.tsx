@@ -94,7 +94,7 @@ export function HotelOperations({ initialSection }: { initialSection: Section })
           window.history.replaceState({}, "", "/");
         }
       } else { setSignedIn(false); setStaffIdentity(null); }
-      setSnapshot(staffData ? { ...emptySnapshot, ...staffData, rooms: (staffData.rooms as LiveSnapshot["rooms"] | undefined) || rooms, roomUnits: (staffData.roomUnits as LiveSnapshot["roomUnits"] | undefined) || [], notifications: (staffData.notifications as LiveSnapshot["notifications"] | undefined) || [], unreadNotifications: Number(staffData.unreadCount || 0), todayCheckouts: (staffData.todayCheckouts as LiveSnapshot["todayCheckouts"] | undefined) || [], todayGuestCount: Number(staffData.todayGuestCount || 0), todayDate: String(staffData.todayDate || ""), dashboard: (staffData.dashboard as LiveSnapshot["dashboard"] | undefined) || {}, records: (staffData.records as LiveSnapshot["records"] | undefined) || {}, financial: (staffData.financial as LiveSnapshot["financial"] | undefined) || { payments: [], charges: [], folios: [] }, guests: (staffData.guests as LiveSnapshot["guests"] | undefined) || [], reservations: (staffData.reservations as LiveSnapshot["reservations"] | undefined) || [] } : { ...emptySnapshot, rooms });
+      setSnapshot(staffData ? { ...emptySnapshot, ...staffData, rooms: (staffData.rooms as LiveSnapshot["rooms"] | undefined) || rooms, roomUnits: (staffData.roomUnits as LiveSnapshot["roomUnits"] | undefined) || [], notifications: (staffData.notifications as LiveSnapshot["notifications"] | undefined) || [], unreadNotifications: Number(staffData.unreadCount || 0), todayCheckouts: (staffData.todayCheckouts as LiveSnapshot["todayCheckouts"] | undefined) || [], todayGuestCount: Number(staffData.todayGuestCount || 0), todayDate: String(staffData.todayDate || ""), dashboard: (staffData.dashboard as LiveSnapshot["dashboard"] | undefined) || {}, records: (staffData.records as LiveSnapshot["records"] | undefined) || {}, inventoryMovements: (staffData.inventoryMovements as LiveSnapshot["inventoryMovements"] | undefined) || [], financial: (staffData.financial as LiveSnapshot["financial"] | undefined) || { payments: [], charges: [], folios: [] }, guests: (staffData.guests as LiveSnapshot["guests"] | undefined) || [], reservations: (staffData.reservations as LiveSnapshot["reservations"] | undefined) || [] } : { ...emptySnapshot, rooms });
       if (staffData && Array.isArray(staffData.notifications) && !hasNotificationBaseline.current) {
         knownNotificationIds.current = new Set((staffData.notifications as { id: number }[]).map((item) => item.id));
         hasNotificationBaseline.current = true;
@@ -320,7 +320,7 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
   }>({ query: "", loading: false, rooms: {}, error: "" });
   const isBooking = type === "booking";
   const payableReservations = reservations.filter((reservation) =>
-    !["cancelled", "no-show"].includes(String(reservation.status)) && Number(reservation.availableToRecordKsh) > 0);
+    !["inquiry", "pending", "cancelled", "no-show"].includes(String(reservation.status)) && Number(reservation.availableToRecordKsh) > 0);
   const selectedPayment = payableReservations.find((reservation) => reservation.reference === selectedPaymentReservation);
   const availabilityQuery = `${checkIn}|${checkOut}|${guests}`;
   const currentAvailability = availabilityState.query === availabilityQuery ? availabilityState : null;
