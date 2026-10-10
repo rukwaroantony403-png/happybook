@@ -83,8 +83,11 @@ export function PaymentReceiptDialog({ reference, autoPrint, onClose }: { refere
     const timer = window.setTimeout(() => window.print(), 100);
     return () => window.clearTimeout(timer);
   }, [autoPrint, receipt]);
-  const paidToDateKsh = receipt ? receipt.paidBeforeKsh + (receipt.status === "verified" ? receipt.amountKsh : 0) : 0;
-  const pendingToDateKsh = receipt ? receipt.pendingPaymentsKsh + (receipt.status === "pending" ? receipt.amountKsh : 0) : 0;
+  const receptionistReceivedPayment = Boolean(receipt && receipt.status === "pending" && receipt.recorder !== "Guest (Website)");
+  const paidToDateKsh = receipt ? receipt.paidBeforeKsh + (receipt.status === "verified" || receptionistReceivedPayment ? receipt.amountKsh : 0) : 0;
+  const pendingToDateKsh = receipt && !receptionistReceivedPayment
+    ? receipt.pendingPaymentsKsh + (receipt.status === "pending" ? receipt.amountKsh : 0)
+    : 0;
 
   return <div className="receipt-preview-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="receipt-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="receipt-preview-title">
@@ -103,7 +106,9 @@ export function PaymentReceiptDialog({ reference, autoPrint, onClose }: { refere
           <div className="receipt-title-block">
             <h1>RECEIPT</h1>
             <span>{receipt.receiptNumber}</span>
-            <small className={`receipt-payment-status ${receipt.status}`}>{receipt.status.replaceAll("-", " ").toUpperCase()}</small>
+            <small className={`receipt-payment-status ${receptionistReceivedPayment ? "received" : receipt.status}`}>
+              {receptionistReceivedPayment ? "RECEIVED" : receipt.status.replaceAll("-", " ").toUpperCase()}
+            </small>
           </div>
         </header>
         <section className="receipt-stay-details" aria-label="Guest and stay details">
@@ -131,10 +136,10 @@ export function PaymentReceiptDialog({ reference, autoPrint, onClose }: { refere
           <div className="receipt-words"><b>Amount in Words:</b><span>{amountInWords(receipt.amountKsh)}</span></div>
           <div className={`receipt-settlement${pendingToDateKsh > 0 ? " has-pending" : ""}`} aria-label="Payment and balance summary">
             <div><span>Total charges</span><b>{currency(receipt.totalChargesKsh)}</b></div>
-            <div><span>Verified paid to date</span><b>{currency(paidToDateKsh)}</b></div>
+            <div><span>{receptionistReceivedPayment ? "Paid to date" : "Verified paid to date"}</span><b>{currency(paidToDateKsh)}</b></div>
             <div><span>This transaction</span><b>{currency(receipt.amountKsh)}</b></div>
             {pendingToDateKsh > 0 && <div><span>Pending verification</span><b>{currency(pendingToDateKsh)}</b></div>}
-            <div className="receipt-balance"><span>{receipt.status === "pending" ? "Balance if verified" : "Balance due"}</span><b>{currency(receipt.balanceDueKsh)}</b></div>
+            <div className="receipt-balance"><span>{receipt.status === "pending" && !receptionistReceivedPayment ? "Balance if verified" : "Balance due"}</span><b>{currency(receipt.balanceDueKsh)}</b></div>
           </div>
           <div className="receipt-received-by"><b>Recorded By:</b><span>{receipt.recorder}</span></div>
         </section>

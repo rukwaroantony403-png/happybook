@@ -17,6 +17,7 @@
 .receipt-title-block>span{color:#f4d879;font-size:clamp(6px,.7vw,9px);font-weight:700;letter-spacing:.1em}
 .receipt-payment-status{border-radius:10px;padding:2px 8px;color:#075748;background:#fff;font-size:clamp(5px,.56vw,7px);font-weight:800;letter-spacing:.08em}
 .receipt-payment-status.pending{color:#775400;background:#fff2c5}
+.receipt-payment-status.received{color:#075748;background:#e4f3eb}
 .receipt-payment-status.rejected{color:#8a3022;background:#fff0eb}
 .receipt-stay-details{position:relative;z-index:1;display:grid;grid-template-columns:3fr 1.15fr;grid-template-rows:repeat(4,minmax(0,1fr));height:23%;margin:0 2.5%;border-bottom:1px dotted #65a99a}
 .receipt-detail{display:flex;min-width:0;align-items:center;gap:4px;padding:0 3px;border-bottom:1px dotted #85b9ac;white-space:nowrap}
