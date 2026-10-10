@@ -1,0 +1,9 @@
+.git
+.next
+node_modules
+data
+dni
+media-import
+.env*
+npm-debug.log*
+*.tsbuildinfo

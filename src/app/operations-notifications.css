@@ -1,0 +1,77 @@
+.notification-bell{width:38px;height:38px;display:grid;place-items:center;border:1px solid transparent;border-radius:9px;background:#f5f8f5;transition:background .16s,border-color .16s}
+.notification-bell:hover,.notification-bell[aria-expanded=true]{border-color:#dfe9e2;background:#edf4ef}
+.notification-bell .op-icon{width:20px;color:#315d50}
+.notification-bell .op-icon svg{width:19px;height:19px}
+.notification-count{min-width:17px;height:17px;position:absolute;top:-3px;right:-3px;display:grid;place-items:center;border:2px solid white;border-radius:12px;padding:0 4px;color:white;background:#c94f43;font-size:8px;font-style:normal;font-weight:700}
+.notification-pop{width:min(370px,calc(100vw - 26px));top:47px;right:-10px;overflow:hidden;padding:0;box-shadow:0 16px 48px #063d3226}
+.notification-pop>header{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #edf0ec;padding:15px 16px 12px}
+.notification-pop>header b{display:flex;align-items:center;gap:8px;font-size:13px}
+.notification-pop>header b span{border-radius:12px;padding:3px 7px;color:#176746;background:#e9f5ec;font-size:9px}
+.notification-pop .notification-sound-toggle{border:1px solid #e1e9e3;border-radius:15px;padding:5px 9px;color:#49675c;background:#fff;font-size:9px}
+.notification-pop-list{max-height:min(390px,65vh);overflow:auto}
+.notification-pop-item{width:100%;display:grid;grid-template-columns:36px 1fr 8px;align-items:start;gap:10px;border:0;border-bottom:1px solid #f0f2ef;padding:12px 14px;background:white;text-align:left;transition:background .15s}
+.notification-pop-item:hover,.notification-pop-item.unread{background:#f4f8f4}
+.notification-pop-item>span:nth-child(2){min-width:0;display:grid;gap:3px}
+.notification-pop-item b{color:#27483e;font-size:10px}
+.notification-pop-item small{overflow:hidden;color:#72847b;font-size:9px;line-height:1.5;text-overflow:ellipsis}
+.notification-pop-item time{color:#98a39d;font-size:8px}
+.notification-type-mark{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;color:#27684f;background:#e8f3eb}
+.notification-type-mark .op-icon{width:18px}
+.notification-type-mark .op-icon svg{width:16px;height:16px}
+.notification-type-mark.payment{color:#87611e;background:#fbf1db}
+.notification-type-mark.enquiry{color:#3d6493;background:#eaf1fa}
+.notification-unread-dot{width:7px;height:7px;align-self:center;border-radius:50%;background:#1b79d1}
+.notification-pop-item:not(.unread) .notification-unread-dot{visibility:hidden}
+.notification-empty{margin:0;padding:26px 18px!important;color:#708078!important;background:white!important;text-align:center;line-height:1.7}
+.notification-pop>footer{display:flex;flex-wrap:wrap;align-items:center;gap:6px;border-top:1px solid #edf0ec;padding:9px 13px}
+.notification-pop>footer button{border:0;border-radius:5px;padding:6px 7px;color:#58766a;background:transparent;font-size:8px}
+.notification-pop>footer button:hover:not(:disabled){color:#075b48;background:#f1f6f2}
+.notification-pop>footer button:disabled{color:#aab4ae;cursor:default}
+.notification-pop>footer .notification-see-all{margin-left:auto;color:#075b48;font-weight:700}
+.notifications-page .module-intro{align-items:center}
+.notification-feed{display:grid;gap:9px;max-width:900px}
+.notification-feed-item{width:100%;display:grid;grid-template-columns:42px 1fr 9px;align-items:center;gap:14px;border:1px solid #e8ede8;border-radius:9px;padding:16px;background:white;text-align:left;box-shadow:0 2px 8px #102a1e05;transition:border-color .16s,background .16s,transform .16s}
+.notification-feed-item:hover{transform:translateY(-1px);border-color:#cbdcd0}
+.notification-feed-item.unread{border-color:#dae9dc;background:#f4f8f4}
+.notification-feed-item.focused{box-shadow:0 0 0 2px #d2e9d9}
+.notification-feed-item .notification-type-mark{width:40px;height:40px}
+.notification-feed-copy{min-width:0;display:grid;gap:4px}
+.notification-feed-copy b{color:#24483d;font-size:12px}
+.notification-feed-copy>span{color:#63786e;font-size:10px;line-height:1.6}
+.notification-feed-copy time{color:#9aa69f;font-size:9px}
+.notifications-page .module-intro .module-actions{display:flex;gap:8px}
+.notification-detail-card{max-width:900px;margin-top:16px;border:1px solid #e7ede8;border-radius:12px;padding:20px;background:#fff;box-shadow:0 4px 18px #102a1e08}
+.notification-detail-card>div:first-child{display:flex;align-items:flex-start;gap:13px}
+.notification-detail-card>div:first-child>span:last-child{min-width:0}
+.notification-detail-card>div:first-child small,.checkout-card-info small{color:#8a9a90;font-size:9px;font-weight:700;letter-spacing:.08em}
+.notification-detail-card h2{margin:4px 0;color:#24483d;font-size:17px}
+.notification-detail-card p{margin:0;color:#63786e;font-size:11px;line-height:1.6}
+.notification-detail-card dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 22px;margin:18px 0 0;border-top:1px solid #edf1ed}
+.notification-detail-card dl>div{min-width:0;display:grid;gap:4px;border-bottom:1px solid #edf1ed;padding:11px 0}
+.notification-detail-card dt{color:#829087;font-size:9px;font-weight:600;text-transform:uppercase}
+.notification-detail-card dd{overflow-wrap:anywhere;margin:0;color:#28483d;font-size:11px}
+.notification-detail-card dd a,.checkout-contact a{color:#176a50;text-decoration:none}
+.notification-detail-card dd a:hover,.checkout-contact a:hover{text-decoration:underline}
+.notification-detail-card .notification-enquiry-message{margin-top:14px;border-left:3px solid #d7e8db;border-radius:3px;padding:10px 12px;color:#405e50;background:#f5f8f4;white-space:pre-wrap}
+.checkouts-page .module-intro{align-items:center}
+.checkout-guest-total{min-width:150px;display:grid;justify-items:center;gap:2px;border:1px solid #dce9dd;border-radius:11px;padding:12px 18px;background:#f3f8f3}
+.checkout-guest-total b{color:#17674e;font-size:30px;line-height:1}
+.checkout-guest-total span{color:#60786b;font-size:9px}
+.checkout-list{display:grid;gap:12px}
+.checkout-card{border:1px solid #e7ede8;border-radius:11px;padding:16px 18px;background:#fff;box-shadow:0 3px 12px #102a1e05}
+.checkout-card-heading{display:flex;align-items:center;gap:11px}
+.checkout-room-icon{width:37px;height:37px;display:grid;flex:0 0 auto;place-items:center;border-radius:9px;color:#27684f;background:#e8f3eb}
+.checkout-room-icon .op-icon,.checkout-room-icon .op-icon svg{width:18px;height:18px}
+.checkout-card-heading>div{min-width:0;display:grid;gap:3px}
+.checkout-card-heading>div b{color:#24483d;font-size:13px}
+.checkout-card-heading>div small{overflow-wrap:anywhere;color:#78887f;font-size:9px}
+.checkout-status{margin-left:auto;border-radius:14px;padding:5px 9px;color:#41604f;background:#eef5ee;font-size:8px;font-weight:700;text-transform:capitalize}
+.checkout-status.checked-in{color:#17674e;background:#e5f4e9}
+.checkout-status.pending{color:#89651f;background:#fbf3df}
+.checkout-card-info{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px;border-top:1px solid #edf1ed;padding-top:13px}
+.checkout-card-info>div{min-width:0;display:grid;gap:5px}
+.checkout-card-info b{overflow-wrap:anywhere;color:#315345;font-size:10px}
+.checkout-contact{display:flex;flex-wrap:wrap;gap:7px 18px;margin-top:14px;border-top:1px solid #edf1ed;padding-top:11px;color:#819087;font-size:9px}
+.checkout-contact span{margin-left:auto}
+@media(max-width:650px){.ops-topbar{gap:10px}.top-actions{gap:8px}.top-actions>span{display:none}.notification-pop{right:-68px}.notifications-page .module-intro{align-items:flex-start;flex-direction:column}.notification-feed-item{padding:12px;gap:10px}.notification-pop>footer{gap:2px}}
+@media(max-width:650px){.notification-detail-card{padding:15px}.notification-detail-card dl{grid-template-columns:1fr}.checkouts-page .module-intro{align-items:flex-start;flex-direction:column}.checkout-guest-total{min-width:0;grid-template-columns:auto auto;align-items:center;gap:9px}.checkout-guest-total b{font-size:24px}.checkout-card{padding:13px}.checkout-card-info{grid-template-columns:repeat(2,minmax(0,1fr))}.checkout-status{font-size:7px;padding:4px 7px}.checkout-contact span{margin-left:0;flex-basis:100%}}

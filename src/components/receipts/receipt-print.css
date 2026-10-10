@@ -1,0 +1,228 @@
+.receipt-preview-backdrop{position:fixed;z-index:120;inset:0;display:grid;place-items:center;overflow:auto;padding:28px;background:#092f29d9}
+.receipt-preview-dialog{width:min(1160px,100%);max-height:calc(100vh - 56px);overflow:auto;border-radius:12px;padding:20px;background:#f1f4ef;box-shadow:0 24px 80px #001b18a8}
+.receipt-preview-controls{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:18px}
+.receipt-preview-controls h2{margin:3px 0 0;color:#0c493d;font:600 22px/1.2 Georgia,serif}
+.receipt-preview-controls>div:last-child{display:flex;gap:9px}
+.receipt-load-error{margin:25px 0;color:#7a3227}
+.payment-receipt{position:relative;isolation:isolate;width:min(100%,1050px);aspect-ratio:210/99;box-sizing:border-box;overflow:hidden;margin:0 auto;background:#fffefb;color:#064d40;font-family:Arial,Helvetica,sans-serif;font-size:clamp(7px,.72vw,10px);line-height:1.2;box-shadow:0 6px 25px #0b38301c}
+.payment-receipt *{box-sizing:border-box}
+.receipt-letterhead{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-start;height:23%;padding:1.8% 2.5% 0}
+.receipt-branding{width:62%;display:flex;flex-direction:column;align-items:flex-start;gap:1px}
+.receipt-branding img{display:block;width:auto;height:auto;max-width:100%;max-height:clamp(24px,5.4vw,64px);object-fit:contain;object-position:left center}
+.receipt-branding>p{margin:0 0 0 18%;color:#075547;font:italic 600 clamp(7px,.78vw,11px)/1.1 Georgia,serif}
+.receipt-hotel-contact{display:flex;gap:14px;margin:2px 0 0 18%;font-size:clamp(6px,.68vw,9px)}
+.receipt-hotel-contact b{font-weight:700}
+.receipt-title-block{width:36%;display:grid;justify-items:center;gap:2px;border:2px solid #d4a12c;border-radius:9px;padding:2px 5px 3px;color:#fff;background:#075748}
+.receipt-title-block h1{margin:0;color:#fff;font:700 clamp(16px,2.8vw,34px)/1.05 Georgia,"Times New Roman",serif;letter-spacing:.09em}
+.receipt-title-block>span{color:#f4d879;font-size:clamp(6px,.7vw,9px);font-weight:700;letter-spacing:.1em}
+.receipt-payment-status{border-radius:10px;padding:2px 8px;color:#075748;background:#fff;font-size:clamp(5px,.56vw,7px);font-weight:800;letter-spacing:.08em}
+.receipt-payment-status.pending{color:#775400;background:#fff2c5}
+.receipt-payment-status.rejected{color:#8a3022;background:#fff0eb}
+.receipt-stay-details{position:relative;z-index:1;display:grid;grid-template-columns:3fr 1.15fr;grid-template-rows:repeat(4,minmax(0,1fr));height:23%;margin:0 2.5%;border-bottom:1px dotted #65a99a}
+.receipt-detail{display:flex;min-width:0;align-items:center;gap:4px;padding:0 3px;border-bottom:1px dotted #85b9ac;white-space:nowrap}
+.receipt-detail b{flex:0 0 auto;font-size:clamp(6px,.65vw,9px)}
+.receipt-detail span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis}
+.receipt-room{grid-column:1}.receipt-issued{grid-column:2}.receipt-guest{grid-column:1}.receipt-method{grid-column:1}.receipt-transaction{grid-column:2}
+.receipt-charge-table{position:relative;z-index:1;width:95%;height:26%;table-layout:fixed;margin:1.2% 2.5% 0;border:1px solid #3c8272;border-collapse:collapse;font-size:clamp(6px,.65vw,9px)}
+.receipt-charge-table th,.receipt-charge-table td{height:auto;border:1px solid #619a8c;padding:1px 5px;text-align:center}
+.receipt-charge-table thead{height:20%;color:#fff;background:#075748}
+.receipt-charge-table th{font-weight:700}
+.receipt-charge-table th:nth-child(1),.receipt-charge-table td:nth-child(1){width:6%}
+.receipt-charge-table th:nth-child(2),.receipt-charge-table td:nth-child(2){width:41%;text-align:left}
+.receipt-charge-table th:nth-child(3),.receipt-charge-table td:nth-child(3){width:10%}
+.receipt-charge-table th:nth-child(4),.receipt-charge-table td:nth-child(4){width:20%}
+.receipt-charge-table th:nth-child(5),.receipt-charge-table td:nth-child(5){width:23%;text-align:right}
+.receipt-charge-table tbody tr{height:calc(80% / max(5, var(--receipt-charge-count, 5)))}
+.receipt-charge-table td:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.receipt-total-details{position:relative;z-index:1;display:grid;grid-template-columns:1fr auto;grid-template-rows:repeat(2,1fr);column-gap:2%;height:16%;margin:1% 2.5% 0}
+.receipt-words,.receipt-received-by,.receipt-amount{display:flex;min-width:0;align-items:center;gap:4px}
+.receipt-words b,.receipt-received-by b,.receipt-amount b{flex:0 0 auto;font-size:clamp(6px,.64vw,9px)}
+.receipt-words span,.receipt-received-by span{min-width:0;flex:1;border-bottom:1px dotted #68a99b;padding:0 3px 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.receipt-amount{grid-column:2;grid-row:1/3;justify-content:space-between;gap:10px;align-self:center;min-width:48mm;border:1px solid #5ca08e;border-radius:5px;padding:4px 8px;background:#e9f4ef}
+.receipt-amount strong{color:#074d40;font-size:clamp(9px,1.05vw,14px);white-space:nowrap}
+.receipt-received-by{grid-column:1;grid-row:2;width:63%}
+
+.receipt-palm{position:absolute;z-index:0;width:12%;height:34%;color:#408d58;opacity:.16;pointer-events:none}
+.receipt-palm-left{top:1%;left:-2%;transform:rotate(-35deg)}
+.receipt-palm-right{top:-5%;right:-1%;transform:rotate(38deg)}
+.receipt-wave{position:absolute;z-index:0;right:0;bottom:0;left:0;width:100%;height:9%}
+.receipt-print-note{margin:14px 2px 0;color:#52685f;font-size:12px;line-height:1.45}
+
+@media(max-width:640px){
+  .receipt-preview-backdrop{align-items:start;padding:10px}
+  .receipt-preview-dialog{max-height:calc(100vh - 20px);padding:12px}
+  .receipt-preview-controls{align-items:flex-start}
+  .receipt-preview-controls>div:last-child{flex-wrap:wrap;justify-content:flex-end}
+  .payment-receipt{width:100%;font-size:7px}
+  .receipt-detail b,.receipt-detail{font-size:6px}
+  .receipt-amount{min-width:42mm}
+  .receipt-print-note{font-size:10px}
+}
+
+@media print{
+  @page{size:210mm 99mm;margin:0}
+  html,body{width:210mm!important;height:99mm!important;min-width:0!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  body *{visibility:hidden!important}
+  #payment-receipt,#payment-receipt *{visibility:visible!important}
+  #payment-receipt{position:fixed!important;top:0!important;left:0!important;width:210mm!important;height:99mm!important;max-width:none!important;min-width:0!important;aspect-ratio:auto!important;overflow:hidden!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;font-size:7pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  #payment-receipt .receipt-letterhead{height:23%!important;padding:1.8% 2.5% 0!important}
+  #payment-receipt .receipt-branding img{max-height:13mm!important}
+  #payment-receipt .receipt-stay-details{height:23%!important}
+  #payment-receipt .receipt-charge-table{height:26%!important}
+  #payment-receipt .receipt-total-details{height:16%!important}
+  #payment-receipt .receipt-branding>p{font-size:8pt!important}
+  #payment-receipt .receipt-hotel-contact,
+  #payment-receipt .receipt-detail,
+  #payment-receipt .receipt-detail b,
+  #payment-receipt .receipt-detail span,
+  #payment-receipt .receipt-charge-table,
+  #payment-receipt .receipt-words b,
+  #payment-receipt .receipt-words span,
+  #payment-receipt .receipt-received-by b,
+  #payment-receipt .receipt-received-by span{font-size:7pt!important}
+  #payment-receipt .receipt-amount strong{font-size:11pt!important}
+  #payment-receipt .receipt-palm{opacity:.12!important}
+  #payment-receipt .receipt-preview-controls,
+  .receipt-preview-controls,.receipt-print-note,.receipt-load-error{display:none!important}
+  .receipt-preview-backdrop,.receipt-preview-dialog{position:static!important;display:block!important;width:auto!important;height:auto!important;max-height:none!important;overflow:visible!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+}
+
+.payment-receipt{width:min(100%,440px);aspect-ratio:1/2}
+.receipt-letterhead{height:16%;align-items:center;padding:3% 5% 1%}
+.receipt-branding{width:62%;gap:3px}
+.receipt-branding img{width:min(100%,68mm);height:20mm;max-width:100%;max-height:20mm;object-fit:contain;object-position:left center}
+.receipt-hotel-contact{flex-wrap:wrap;gap:4px 10px;margin:1px 0 0;font-size:clamp(7px,1.8vw,9px)}
+.receipt-title-block{width:35%;min-height:38px;gap:4px;padding:5px 4px}
+.receipt-title-block h1{font-size:clamp(15px,4vw,23px)}
+.receipt-title-block>span{font-size:clamp(6px,1.6vw,8px)}
+.receipt-payment-status{font-size:clamp(6px,1.5vw,8px)}
+.receipt-stay-details{height:18%;grid-template-columns:1fr 1fr;margin:1% 5% 0}
+.receipt-detail{gap:3px;white-space:normal}
+.receipt-detail b{font-size:clamp(7px,1.7vw,9px)}
+.receipt-detail span{overflow-wrap:anywhere;font-size:clamp(7px,1.7vw,9px)}
+.receipt-room,.receipt-guest,.receipt-method{grid-column:1}
+.receipt-issued,.receipt-transaction{grid-column:2}
+.receipt-charge-table{width:90%;height:34%;margin:1.5% 5% 0;font-size:clamp(7px,1.7vw,9px)}
+.receipt-charge-table th,.receipt-charge-table td{padding:2px 3px}
+.receipt-charge-table th:nth-child(1),.receipt-charge-table td:nth-child(1){width:7%}
+.receipt-charge-table th:nth-child(2),.receipt-charge-table td:nth-child(2){width:40%}
+.receipt-charge-table th:nth-child(3),.receipt-charge-table td:nth-child(3){width:10%}
+.receipt-charge-table th:nth-child(4),.receipt-charge-table td:nth-child(4){width:21%}
+.receipt-charge-table th:nth-child(5),.receipt-charge-table td:nth-child(5){width:22%}
+.receipt-total-details{height:25%;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr auto;gap:5px 8px;margin:2% 5% 0}
+.receipt-words{grid-column:1/-1;min-height:20px}
+.receipt-words b{font-size:clamp(7px,1.7vw,9px)}
+.receipt-words span{font-size:clamp(7px,1.7vw,9px)}
+.receipt-settlement{grid-column:1/-1;align-self:start;display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;border-top:1px solid #d5e7de;border-bottom:1px solid #d5e7de;padding:5px 0}
+.receipt-settlement>div{display:flex;justify-content:space-between;gap:5px;color:#60786c;font-size:clamp(7px,1.65vw,9px)}
+.receipt-settlement b{color:#174c3d;font-weight:700;text-align:right}
+.receipt-settlement .receipt-balance{grid-column:1/-1;border-radius:4px;padding:5px 7px;color:#fff;background:#075748;font-size:clamp(9px,2vw,11px);font-weight:700}
+.receipt-settlement .receipt-balance b{color:#fff;font-size:clamp(10px,2.4vw,13px)}
+.receipt-received-by{align-self:end;width:100%;font-size:clamp(7px,1.7vw,9px)}
+.receipt-received-by{grid-column:1;grid-row:3}
+.receipt-palm{width:16%;height:21%}
+.receipt-palm-left{top:0;left:-3%}
+.receipt-palm-right{top:0;right:-2%}
+.receipt-wave{height:5%}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{width:210mm!important;height:297mm!important;min-width:210mm!important;min-height:297mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  #payment-receipt{position:fixed!important;top:10mm!important;left:50%!important;width:110mm!important;height:220mm!important;max-width:none!important;min-width:110mm!important;aspect-ratio:auto!important;transform:translateX(-50%)!important;overflow:hidden!important;margin:0!important;border:.25mm solid #8eaa9e!important;box-shadow:none!important;font-size:7pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  #payment-receipt .receipt-letterhead{height:16%!important;padding:3% 5% 1%!important}
+  #payment-receipt .receipt-branding{width:62%!important}
+  #payment-receipt .receipt-branding img{width:68mm!important;height:20mm!important;max-width:100%!important;max-height:20mm!important}
+  #payment-receipt .receipt-hotel-contact,
+  #payment-receipt .receipt-detail,
+  #payment-receipt .receipt-detail b,
+  #payment-receipt .receipt-detail span,
+  #payment-receipt .receipt-charge-table,
+  #payment-receipt .receipt-words b,
+  #payment-receipt .receipt-words span,
+  #payment-receipt .receipt-received-by{font-size:7pt!important}
+  #payment-receipt .receipt-stay-details{height:18%!important;grid-template-columns:1fr 1fr!important;margin:1% 5% 0!important}
+  #payment-receipt .receipt-charge-table{height:34%!important;width:90%!important;margin:1.5% 5% 0!important}
+  #payment-receipt .receipt-total-details{height:25%!important;grid-template-rows:auto 1fr auto!important;margin:2% 5% 0!important}
+  #payment-receipt .receipt-settlement>div{font-size:7pt!important}
+  #payment-receipt .receipt-settlement .receipt-balance{font-size:8pt!important}
+  #payment-receipt .receipt-settlement .receipt-balance b{font-size:10pt!important}
+  #payment-receipt .receipt-palm{opacity:.12!important}
+}
+
+.payment-receipt{width:min(100%,1050px);aspect-ratio:210/99}
+.receipt-letterhead{height:29%;align-items:flex-start;padding:1.5% 3% 0}
+.receipt-branding{width:61%;gap:1px}
+.receipt-branding img{width:min(100%,84mm);height:21mm;max-width:100%;max-height:21mm;object-fit:contain;object-position:left center}
+.receipt-hotel-contact{flex-wrap:nowrap;gap:3mm;margin:1px 0 0 1mm;font-size:clamp(7px,.68vw,9px);white-space:nowrap}
+.receipt-title-block{width:36%;min-height:42px;gap:3px;padding:4px 6px}
+.receipt-title-block h1{font-size:clamp(20px,2.8vw,34px)}
+.receipt-title-block>span{font-size:clamp(7px,.72vw,9px)}
+.receipt-payment-status{font-size:clamp(6px,.58vw,8px)}
+.receipt-stay-details{height:18%;grid-template-columns:3fr 1.15fr;margin:0 3%}
+.receipt-room,.receipt-guest,.receipt-method{grid-column:1}
+.receipt-issued,.receipt-transaction{grid-column:2}
+.receipt-detail{gap:5px;white-space:nowrap}
+.receipt-detail b,.receipt-detail span{font-size:clamp(7px,.67vw,9px)}
+.receipt-charge-table{width:94%;height:28%;margin:.8% 3% 0;font-size:clamp(7px,.66vw,9px)}
+.receipt-charge-table th,.receipt-charge-table td{padding:2px 5px}
+.receipt-charge-table th:nth-child(1),.receipt-charge-table td:nth-child(1){width:6%}
+.receipt-charge-table th:nth-child(2),.receipt-charge-table td:nth-child(2){width:41%}
+.receipt-charge-table th:nth-child(3),.receipt-charge-table td:nth-child(3){width:10%}
+.receipt-charge-table th:nth-child(4),.receipt-charge-table td:nth-child(4){width:20%}
+.receipt-charge-table th:nth-child(5),.receipt-charge-table td:nth-child(5){width:23%}
+.receipt-total-details{height:20%;grid-template-columns:1fr;grid-template-rows:4.5mm 8.5mm 4mm;gap:1mm;margin:.8% 3% 0}
+.receipt-words{grid-column:1;grid-row:1;min-height:16px}
+.receipt-words b,.receipt-words span{font-size:clamp(7px,.66vw,9px)}
+.receipt-settlement{grid-column:1;grid-row:2;align-self:stretch;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px 5px;border-top:1px solid #d5e7de;border-bottom:1px solid #d5e7de;padding:2px 0}
+.receipt-settlement:not(.has-pending){grid-template-columns:repeat(4,minmax(0,1fr))}
+.receipt-settlement>div{display:grid;align-content:center;gap:1px;min-width:0;padding:1px 3px;color:#60786c;font-size:clamp(7px,.62vw,8px)}
+.receipt-settlement b{color:#174c3d;font-weight:700;text-align:right;white-space:nowrap}
+.receipt-settlement .receipt-balance{grid-column:auto;border-radius:4px;padding:2px 5px;color:#fff;background:#075748;font-size:clamp(8px,.72vw,10px);font-weight:700}
+.receipt-settlement .receipt-balance b{color:#fff;font-size:clamp(9px,.86vw,12px)}
+.receipt-received-by{align-self:end;width:48%;font-size:clamp(7px,.65vw,9px)}
+.receipt-received-by{grid-column:1;grid-row:3}
+.receipt-received-by{grid-column:1/-1;width:100%}
+.receipt-palm{width:12%;height:34%}
+.receipt-palm-left{top:1%;left:-2%}
+.receipt-palm-right{top:-5%;right:-1%}
+.receipt-wave{right:3%;bottom:0;left:3%;width:94%;height:3.5%}
+#payment-watermark{display:none}
+
+@media(max-width:640px){
+  .receipt-preview-dialog{overflow:auto}
+  .payment-receipt{width:min(100%,1050px);font-size:clamp(5px,1.5vw,8px)}
+}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{width:210mm!important;height:297mm!important;min-width:210mm!important;min-height:297mm!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#fff!important}
+  #payment-receipt{position:fixed!important;top:0!important;left:0!important;width:210mm!important;height:99mm!important;max-width:none!important;min-width:210mm!important;aspect-ratio:auto!important;transform:none!important;overflow:hidden!important;margin:0!important;border:.2mm solid #8eaa9e!important;box-shadow:none!important;font-size:7pt!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;break-inside:avoid!important;page-break-inside:avoid!important}
+  #payment-receipt .receipt-letterhead{height:29%!important;padding:1.5% 3% 0!important}
+  #payment-receipt .receipt-branding{width:61%!important}
+  #payment-receipt .receipt-branding img{width:84mm!important;height:21mm!important;max-width:100%!important;max-height:21mm!important}
+  #payment-receipt .receipt-hotel-contact,
+  #payment-receipt .receipt-detail,
+  #payment-receipt .receipt-detail b,
+  #payment-receipt .receipt-detail span,
+  #payment-receipt .receipt-charge-table,
+  #payment-receipt .receipt-words b,
+  #payment-receipt .receipt-words span,
+  #payment-receipt .receipt-received-by{font-size:7pt!important}
+  #payment-receipt .receipt-stay-details{height:18%!important;grid-template-columns:3fr 1.15fr!important;margin:0 3%!important}
+  #payment-receipt .receipt-room,
+  #payment-receipt .receipt-guest,
+  #payment-receipt .receipt-method{grid-column:1!important}
+  #payment-receipt .receipt-issued,
+  #payment-receipt .receipt-transaction{grid-column:2!important}
+  #payment-receipt .receipt-charge-table{height:28%!important;width:94%!important;margin:.8% 3% 0!important}
+  #payment-receipt .receipt-total-details{height:20%!important;grid-template-rows:4.5mm 8.5mm 4mm!important;gap:1mm!important;margin:.8% 3% 0!important}
+  #payment-receipt .receipt-settlement{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+  #payment-receipt .receipt-settlement:not(.has-pending){grid-template-columns:repeat(4,minmax(0,1fr))!important}
+  #payment-receipt .receipt-settlement>div{display:grid!important;align-content:center!important;gap:1px!important;font-size:7pt!important}
+  #payment-receipt .receipt-settlement .receipt-balance{font-size:8pt!important}
+  #payment-receipt .receipt-settlement .receipt-balance b{font-size:10pt!important}
+  #payment-receipt .receipt-wave{right:3%!important;bottom:0!important;left:3%!important;width:94%!important;height:3.5%!important}
+  #payment-watermark,#payment-watermark *{visibility:visible!important}
+  #payment-watermark{position:fixed!important;z-index:0!important;top:145mm!important;left:50%!important;display:block!important;width:145mm!important;height:40mm!important;transform:translateX(-50%)!important;opacity:.075!important}
+  #payment-watermark img{width:100%!important;height:100%!important;object-fit:contain!important}
+}
