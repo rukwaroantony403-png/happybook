@@ -57,7 +57,7 @@ type BookingInput = {
   source?: string;
 };
 
-export type StaffRole = "admin" | "manager" | "receptionist" | "chief-accountant";
+export type StaffRole = "admin" | "manager" | "receptionist" | "controller" | "chief-accountant";
 export type StaffIdentity = { id: string; username: string; fullName: string; role: StaffRole };
 
 const databasePath = process.env.HOTEL_DATABASE_PATH
@@ -185,7 +185,7 @@ database.exec(`
     id TEXT PRIMARY KEY,
     username TEXT NOT NULL COLLATE NOCASE UNIQUE,
     full_name TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'receptionist', 'chief-accountant')),
+    role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'receptionist', 'controller', 'chief-accountant')),
     password_salt TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
@@ -231,6 +231,33 @@ database.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+const staffUsersSchema = database.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='staff_users'").get() as { sql: string } | undefined;
+if (staffUsersSchema && !staffUsersSchema.sql.includes("'controller'")) {
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    database.exec(`
+      ALTER TABLE staff_users RENAME TO staff_users_legacy;
+      CREATE TABLE staff_users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('admin', 'manager', 'receptionist', 'controller', 'chief-accountant')),
+        password_salt TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO staff_users (id,username,full_name,role,password_salt,password_hash,active,created_at)
+        SELECT id,username,full_name,role,password_salt,password_hash,active,created_at FROM staff_users_legacy;
+      DROP TABLE staff_users_legacy;
+    `);
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
 
 const existingInventoryItems = database.prepare("SELECT record_key,payload FROM operational_records WHERE kind='inventory'").all() as { record_key: string; payload: string }[];
 const insertOpeningInventoryMovement = database.prepare(`INSERT INTO inventory_movements
@@ -1648,7 +1675,7 @@ export function getStaffIdentity(id: string): StaffIdentity | null {
 }
 
 export function listStaffUsers(): StaffIdentity[] {
-  return database.prepare("SELECT id, username, full_name AS fullName, role FROM staff_users WHERE active=1 ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 WHEN 'chief-accountant' THEN 2 ELSE 3 END, full_name COLLATE NOCASE")
+  return database.prepare("SELECT id, username, full_name AS fullName, role FROM staff_users WHERE active=1 ORDER BY CASE role WHEN 'admin' THEN 0 WHEN 'manager' THEN 1 WHEN 'receptionist' THEN 2 WHEN 'controller' THEN 3 WHEN 'chief-accountant' THEN 4 ELSE 5 END, full_name COLLATE NOCASE")
     .all() as StaffIdentity[];
 }
 

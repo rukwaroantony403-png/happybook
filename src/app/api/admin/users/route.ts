@@ -4,7 +4,7 @@ import { AdminAccountLimitError, createStaffUser, listStaffUsers, type StaffRole
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const roles: StaffRole[] = ["admin", "manager", "receptionist", "chief-accountant"];
+const roles: StaffRole[] = ["admin", "manager", "receptionist", "controller", "chief-accountant"];
 
 export async function GET(request: Request) {
   const staff = getStaffSession(request);

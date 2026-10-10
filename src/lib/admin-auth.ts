@@ -53,7 +53,7 @@ export function isAdminRequest(request: Request) {
 }
 
 export function canVerifyPayments(role: StaffRole) {
-  return role !== "receptionist";
+  return role === "admin" || role === "manager" || role === "chief-accountant";
 }
 
 export function adminCookieOptions(maxAge: number) {

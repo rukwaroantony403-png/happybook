@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-type StaffRole = "admin" | "manager" | "receptionist" | "chief-accountant";
+type StaffRole = "admin" | "manager" | "receptionist" | "controller" | "chief-accountant";
 type StaffUser = { id: string; username: string; fullName: string; role: StaffRole };
-const roleNames: Record<StaffRole, string> = { admin: "Administrator", manager: "Manager", receptionist: "Receptionist", "chief-accountant": "Chief accountant" };
+const roleNames: Record<StaffRole, string> = { admin: "Administrator", manager: "Manager", receptionist: "Receptionist", controller: "Controller", "chief-accountant": "Chief accountant" };
 const roleDescriptions: Record<StaffRole, string> = {
   admin: "Full access, including staff accounts and deleting records.",
   manager: "Full system access, except deleting rooms and reservations.",
   receptionist: "Full system access; cannot verify or reject payments.",
+  controller: "Receptionist access; cannot verify or reject payments.",
   "chief-accountant": "Full system access, including payment verification.",
 };
 

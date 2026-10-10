@@ -20,7 +20,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/admin
 export async function PATCH(request: Request, context: RouteContext<"/api/admin/payments/[reference]">) {
   const staff = getStaffSession(request);
   if (!staff) return Response.json({ error: "Staff authentication required." }, { status: 401 });
-  if (!canVerifyPayments(staff.role)) return Response.json({ error: "Receptionists cannot verify or reject payments." }, { status: 403 });
+  if (!canVerifyPayments(staff.role)) return Response.json({ error: "This staff role cannot verify or reject payments." }, { status: 403 });
   const { reference } = await context.params;
   let body: { decision?: unknown; rejectionReason?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: "Provide the verifier." }, { status: 400 }); }
