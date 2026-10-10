@@ -63,7 +63,7 @@ Deploy the staff system first. Then follow the public website's separate guide i
 1. Open `https://portal.happylandhoteldiani.co.ke/login`. If it does not load, check the deployment logs, domain spelling, DNS record, and ports 80/443.
 2. Sign in using the `ADMIN_USERNAME` and `ADMIN_PASSWORD` you configured. Change or rotate credentials through the application's supported staff settings; do not edit the production SQLite file manually.
 3. Open `https://portal.happylandhoteldiani.co.ke/api/public/hotel`. It should return the hotel's public room and property data as JSON. A browser may display the JSON as plain text; that is expected.
-4. In Operations → Rooms, verify the 20 physical starter units (5 studios, 10 one-bedroom, and 5 two-bedroom) and configure current rates, descriptions, amenities, and approved photos before accepting live bookings.
+4. In Operations → Rooms, verify the 20 physical starter units (5 studios, 10 one-bedroom, and 5 two-bedroom), their starting nightly rates (KES 6,000, KES 10,000, and KES 15,000), and configure descriptions, amenities, and approved photos before accepting live bookings. The three virtual three-bedroom combinations start at KES 25,000 per night.
 5. Set up regular backups of the **entire `/app/data` volume**. The SQLite database and room photos must be backed up and restored together. Test that a backup can be restored before relying on it.
 
 After the staff app is working, deploy the guest-facing website separately using `C:\dni\README.md`. The website must call this staff system at `https://portal.happylandhoteldiani.co.ke`; it must not have a second production reservations database.
@@ -96,6 +96,8 @@ Website bookings are validated and checked again against current stock inside a 
 | `POST /api/enquiries` | Save a visitor enquiry for staff follow-up. |
 
 Add physical room units, guest limits, nightly KES rates, public descriptions, amenities, and approved photos in Operations → Rooms. The three-bedroom accommodations are virtual combinations of A2+A3, C2+C3, and D2+D3, not extra physical units. Each combination is managed and priced in staff operations and reserves all component units together. Public room-image paths are served by this system; keep the media storage reachable and durable.
+
+The standard starter nightly rates are KES 6,000 per studio, KES 10,000 per one-bedroom, KES 15,000 per two-bedroom, and KES 25,000 per virtual three-bedroom combination. A one-time database migration applies these rates to existing starter inventory while preserving guest capacities and reservation totals. Staff may subsequently edit the live rates in Operations → Rooms.
 
 Room photos are uploaded to one folder per physical room category. The default folders are `data/room-media/studio/`, `data/room-media/1-bedroom/`, and `data/room-media/2-bedroom/`, relative to this staff project. Virtual combinations use the galleries of their component categories; they do not have a separate physical three-bedroom folder. If `HOTEL_MEDIA_PATH` is configured, the category folders are created under that storage root. Keep exterior and drone photos in the separate property gallery.
 

@@ -432,6 +432,51 @@ if (!initialSeed || needsCanonicalInventory) {
   }
 }
 
+const rateMigration = database.prepare("SELECT 1 FROM operational_records WHERE kind='settings' AND record_key='standard-room-rates-2026-10'").get();
+if (!rateMigration) {
+  const physicalRates = new Map(initialPhysicalRooms.map((room) => [room.categorySlug, room.nightlyRateKsh]));
+  const combinationRates = new Map(initialRoomCombinations.map((combination) => [combination.slug, combination.nightlyRateKsh]));
+  const migrationDetails = {
+    physical: Object.fromEntries(physicalRates),
+    combinations: Object.fromEntries(combinationRates),
+  };
+  database.exec("BEGIN IMMEDIATE");
+  try {
+    for (const [slug, nightlyRateKsh] of physicalRates) {
+      const room = database.prepare("SELECT room_details AS roomDetails FROM rooms WHERE slug=?").get(slug) as { roomDetails: string } | undefined;
+      if (room) {
+        const details = JSON.parse(room.roomDetails || "{}") as RoomConfig;
+        database.prepare("UPDATE rooms SET nightly_rate_ksh=?,room_details=? WHERE slug=?")
+          .run(nightlyRateKsh, JSON.stringify({ ...details, nightlyRateKsh, weeklyRatesKsh: Array(7).fill(nightlyRateKsh) }), slug);
+      }
+
+      const units = database.prepare("SELECT id,unit_details AS unitDetails FROM room_units WHERE room_slug=?").all(slug) as { id: number; unitDetails: string }[];
+      for (const unit of units) {
+        const details = JSON.parse(unit.unitDetails || "{}") as Record<string, unknown>;
+        database.prepare("UPDATE room_units SET unit_details=?,updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .run(JSON.stringify({ ...details, nightlyRateKsh, weeklyRatesKsh: Array(7).fill(nightlyRateKsh) }), unit.id);
+      }
+    }
+
+    for (const [slug, nightlyRateKsh] of combinationRates) {
+      const combination = database.prepare("SELECT details FROM room_combinations WHERE slug=?").get(slug) as { details: string } | undefined;
+      if (!combination) continue;
+      const details = JSON.parse(combination.details || "{}") as Record<string, unknown>;
+      database.prepare("UPDATE room_combinations SET nightly_rate_ksh=?,details=? WHERE slug=?")
+        .run(nightlyRateKsh, JSON.stringify({ ...details, weeklyRatesKsh: Array(7).fill(nightlyRateKsh) }), slug);
+    }
+
+    database.prepare("INSERT INTO operational_records(kind,record_key,payload) VALUES('settings','standard-room-rates-2026-10',?)")
+      .run(JSON.stringify(migrationDetails));
+    database.prepare("INSERT INTO audit_events(actor,action,entity,entity_key,details) VALUES(?,?,?,?,?)")
+      .run("System", "room.standard_rates_updated", "room_rates", "2026-10", JSON.stringify(migrationDetails));
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+}
+
 type RoomRow = { slug: string; name: string; inventory: number; max_guests: number; nightly_rate_ksh: number };
 
 const listRooms = database.prepare("SELECT slug, name, inventory, max_guests, nightly_rate_ksh FROM rooms WHERE active=1 ORDER BY name");
