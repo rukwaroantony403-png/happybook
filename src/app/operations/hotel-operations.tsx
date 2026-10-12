@@ -298,25 +298,50 @@ export function HotelOperations({ initialSection }: { initialSection: Section })
       <button className="outline-btn" onClick={() => { if (localTesting) return; if (signedIn) void signOut(); else setLoginOpen(true); }} disabled={localTesting}>{localTesting ? "Local test mode" : signedIn ? `${staffIdentity?.fullName || "Staff"} · ${staffIdentity?.role || "Staff"}` : "Staff sign in"}</button><span>{new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeZone: "Africa/Nairobi" }).format(new Date())}</span></div></header><div className="ops-content">{loading ? <div className="live-empty">Loading hotel records...</div> : section === "Dashboard" ? <Dashboard snapshot={snapshot} roomsPublic={snapshot.rooms} signedIn={signedIn} staffName={staffIdentity?.fullName || staffIdentity?.username} go={go} onQuick={setModal} today={today}/> : <Module section={section} snapshot={snapshot} roomsPublic={snapshot.rooms} signedIn={signedIn} search={search} action={action} onQuick={(type, reference) => { setPaymentReservationReference(reference || ""); setModal(type); }} onReceipt={(reference, print) => { setReceiptReference(reference); setReceiptAutoPrint(print); }} persistRecord={persistRecord} refresh={refresh} openNotification={(id) => void openNotification(id)} clearNotifications={() => void clearNotifications()} markAllNotificationsRead={() => void updateNotification("read-all")} selectedNotificationId={selectedNotificationId} staffRole={staffIdentity?.role || null}/>}</div></main>
     {toast && <div className="ops-toast" role="status">{toast}</div>}
     {!localTesting && loginOpen && <div className="modal-backdrop"><form className="action-modal" onSubmit={(event) => void signIn(event)}><h2>Staff sign in</h2><label className="sign-in-label">Username<input autoComplete="username" value={adminUsername} onChange={(event) => setAdminUsername(event.target.value)} required/></label><label className="sign-in-label">Password<input autoComplete="current-password" type="password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} required/></label><div className="modal-actions"><button type="button" className="outline-btn" onClick={() => setLoginOpen(false)}>Cancel</button><button className="primary-btn">Sign in</button></div></form></div>}
-    {modal && <div className="modal-backdrop"><ActionModal type={modal} rooms={snapshot.rooms} reservations={snapshot.reservations} initialReservationReference={paymentReservationReference} close={() => setModal(null)} save={(record) => saveActionModal(modal, record)}/></div>}
+    {modal && <div className="modal-backdrop"><ActionModal type={modal} rooms={snapshot.rooms} roomUnits={snapshot.roomUnits} reservations={snapshot.reservations} initialReservationReference={paymentReservationReference} close={() => setModal(null)} save={(record) => saveActionModal(modal, record)}/></div>}
     {receiptReference && <PaymentReceiptDialog key={receiptReference} reference={receiptReference} autoPrint={receiptAutoPrint} onClose={() => { setReceiptReference(""); setReceiptAutoPrint(false); }}/>}
   </div>;
 }
 
-function ActionModal({ type, rooms, reservations, initialReservationReference, close, save }: { type: "booking" | "payment" | "maintenance" | "expense"; rooms: Record<string, unknown>[]; reservations: Record<string, unknown>[]; initialReservationReference: string; close: () => void; save: (record: Record<string, unknown>) => Promise<void> }) {
+type AvailableUnitOption = {
+  id?: number;
+  code?: string;
+  unitCodes?: string[];
+  totalKsh: number;
+  nightlyRateKsh: number;
+  nights: number;
+  maxGuests: number;
+  bedCount: number;
+  bedConfiguration: string;
+};
+type StaffRoomAvailability = {
+  slug: string;
+  name: string;
+  type: "room" | "combination";
+  guestLimitMet: boolean;
+  availableUnits: number;
+  unitOptions: AvailableUnitOption[];
+};
+type ReservationRoomChoice = {
+  accommodation: StaffRoomAvailability;
+  option: AvailableUnitOption | null;
+};
+
+function ActionModal({ type, rooms, roomUnits, reservations, initialReservationReference, close, save }: { type: "booking" | "payment" | "maintenance" | "expense"; rooms: Record<string, unknown>[]; roomUnits: Record<string, unknown>[]; reservations: Record<string, unknown>[]; initialReservationReference: string; close: () => void; save: (record: Record<string, unknown>) => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [selectedPaymentReservation, setSelectedPaymentReservation] = useState(initialReservationReference);
   const [roomSearch, setRoomSearch] = useState("");
   const [bedFilter, setBedFilter] = useState("any");
   const [selectedRoomSlug, setSelectedRoomSlug] = useState("");
+  const [selectedRoomCode, setSelectedRoomCode] = useState("");
   const [guests, setGuests] = useState(2);
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [availabilityState, setAvailabilityState] = useState<{
     query: string;
     loading: boolean;
-    rooms: Record<string, { status: string; availableUnits: number }>;
+    rooms: Record<string, StaffRoomAvailability>;
     error: string;
   }>({ query: "", loading: false, rooms: {}, error: "" });
   const isBooking = type === "booking";
@@ -329,13 +354,30 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
   const availabilityChecking = hasStayDates && (!currentAvailability || currentAvailability.loading);
   const availabilityError = currentAvailability?.error || "";
   const activeRooms = rooms.filter((room) => Number(room.active ?? 1) === 1 && Number(room.inventory || 0) > 0);
-  const matchingRooms = activeRooms.filter((room) => {
-    const bedCount = Number(room.bedCount || 0);
-    const maxGuests = Number(room.maxGuests || 0);
-    const searchable = `${room.name || ""} ${room.abbreviation || ""} ${room.bedConfiguration || ""} ${bedCount} ${bedCount === 1 ? "bed" : "beds"} ${maxGuests} ${maxGuests === 1 ? "guest" : "guests"}`.toLowerCase();
-    return maxGuests >= guests &&
-      (bedFilter === "any" || bedCount === Number(bedFilter)) &&
-      (!roomSearch.trim() || searchable.includes(roomSearch.trim().toLowerCase()));
+  const roomSearchText = roomSearch.trim().toLowerCase();
+  const currentAccommodations = currentAvailability ? Object.values(currentAvailability.rooms) : [];
+  const reservationChoices: ReservationRoomChoice[] = currentAccommodations.flatMap((accommodation): ReservationRoomChoice[] => {
+    const matchesSearch = (option?: AvailableUnitOption) => {
+      const unitCategory = option?.code
+        ? roomUnits.find((unit) => String(unit.code).toLowerCase() === option.code?.toLowerCase())
+        : undefined;
+      const searchable = [
+        accommodation.name,
+        accommodation.slug,
+        unitCategory?.category,
+        unitCategory?.slug,
+        option?.code,
+        ...(option?.unitCodes || []),
+      ].join(" ").toLowerCase();
+      return !roomSearchText || searchable.includes(roomSearchText);
+    };
+    const matchingOptions = accommodation.unitOptions.filter((option) =>
+      option.maxGuests >= guests &&
+      (bedFilter === "any" || option.bedCount === Number(bedFilter)) &&
+      matchesSearch(option));
+    if (matchingOptions.length) return matchingOptions.map((option) => ({ accommodation, option }));
+    if (!accommodation.unitOptions.length && matchesSearch()) return [{ accommodation, option: null }];
+    return [];
   });
 
   useEffect(() => {
@@ -344,15 +386,15 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setAvailabilityState({ query: availabilityQuery, loading: true, rooms: {}, error: "" });
-      void fetch(`/api/public/hotel?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests}`, {
+      void fetch(`/api/admin/reservations/availability?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests}`, {
         cache: "no-store",
         signal: controller.signal,
       }).then(async (response) => {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || "Room availability could not be checked.");
-        const availability: Record<string, { status: string; availableUnits: number }> = {};
+        const availability: Record<string, StaffRoomAvailability> = {};
         for (const room of result.rooms || []) {
-          if (typeof room.slug === "string" && room.availability) availability[room.slug] = room.availability;
+          if (typeof room.slug === "string") availability[room.slug] = room as StaffRoomAvailability;
         }
         setAvailabilityState({ query: availabilityQuery, loading: false, rooms: availability, error: "" });
       }).catch((requestError: unknown) => {
@@ -378,13 +420,14 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
     setError("");
     const form = new FormData(event.currentTarget);
     if (isBooking) {
-      const room = matchingRooms.find((candidate) => candidate.slug === selectedRoomSlug);
-      if (!room) {
-        setError("Choose a room from the matching suggestions.");
+      const choice = reservationChoices.find((candidate) =>
+        candidate.accommodation.slug === selectedRoomSlug &&
+        (candidate.option?.code || "") === selectedRoomCode);
+      if (!choice?.option) {
+        setError("Choose an available room number or accommodation from the suggestions.");
         return;
       }
-      const availability = currentAvailability?.rooms[selectedRoomSlug];
-      if (availabilityChecking || availability?.status === "unavailable") {
+      if (availabilityChecking || !currentAvailability) {
         setError("That room is not available for the selected stay. Choose another room or dates.");
         return;
       }
@@ -393,6 +436,7 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
         return;
       }
       form.set("roomSlug", selectedRoomSlug);
+      if (selectedRoomCode) form.set("roomUnitCode", selectedRoomCode);
       form.set("guests", String(guests));
       form.set("checkIn", checkIn);
       form.set("checkOut", checkOut);
@@ -419,20 +463,21 @@ function ActionModal({ type, rooms, reservations, initialReservationReference, c
         <section className="reservation-step">
           <h3><span>1</span> Stay and room</h3>
           <div className="reservation-stay-fields">
-            <label>Check in<input name="checkIn" type="date" min={nairobiDate()} value={checkIn} onChange={(event) => { setCheckIn(event.target.value); setSelectedRoomSlug(""); }} required/></label>
-            <label>Check out<input name="checkOut" type="date" min={checkIn ? nextDate(checkIn) : nairobiDate(1)} value={checkOut} onChange={(event) => { setCheckOut(event.target.value); setSelectedRoomSlug(""); }} required/></label>
-            <label>Guests<input name="guests" type="number" min="1" max="20" value={guests} onChange={(event) => { setGuests(Number(event.target.value)); setSelectedRoomSlug(""); }} required/></label>
-            <label>Beds<select value={bedFilter} onChange={(event) => { setBedFilter(event.target.value); setSelectedRoomSlug(""); }}><option value="any">Any bed count</option>{[...new Set(activeRooms.map((room) => Number(room.bedCount || 0)).filter((count) => count > 0))].sort((a, b) => a - b).map((count) => <option key={count} value={count}>{count} {count === 1 ? "bed" : "beds"}</option>)}</select></label>
+            <label>Check in<input name="checkIn" type="date" min={nairobiDate()} value={checkIn} onChange={(event) => { setCheckIn(event.target.value); setSelectedRoomSlug(""); setSelectedRoomCode(""); }} required/></label>
+            <label>Check out<input name="checkOut" type="date" min={checkIn ? nextDate(checkIn) : nairobiDate(1)} value={checkOut} onChange={(event) => { setCheckOut(event.target.value); setSelectedRoomSlug(""); setSelectedRoomCode(""); }} required/></label>
+            <label>Guests<input name="guests" type="number" min="1" max="20" value={guests} onChange={(event) => { setGuests(Number(event.target.value)); setSelectedRoomSlug(""); setSelectedRoomCode(""); }} required/></label>
+            <label>Beds<select value={bedFilter} onChange={(event) => { setBedFilter(event.target.value); setSelectedRoomSlug(""); setSelectedRoomCode(""); }}><option value="any">Any bed count</option>{[...new Set(activeRooms.map((room) => Number(room.bedCount || 0)).filter((count) => count > 0))].sort((a, b) => a - b).map((count) => <option key={count} value={count}>{count} {count === 1 ? "bed" : "beds"}</option>)}</select></label>
           </div>
-          <label className="reservation-room-search">Find a room by name or type<input type="search" value={roomSearch} onChange={(event) => { setRoomSearch(event.target.value); setSelectedRoomSlug(""); }} placeholder="Try Double, single bed, or 2 guests"/></label>
+          <label className="reservation-room-search">Find a room by number or name<input type="search" value={roomSearch} onChange={(event) => { setRoomSearch(event.target.value); setSelectedRoomSlug(""); setSelectedRoomCode(""); }} placeholder="Type a room number or name, e.g. A3 or Studio"/></label>
           <div className="reservation-room-suggestions" role="listbox" aria-label="Matching rooms">
-            {!activeRooms.length ? <p>No active rooms are configured.</p> : !matchingRooms.length ? <p>No rooms match those guest and bed requirements.</p> : matchingRooms.map((room) => {
-              const slug = String(room.slug);
-              const availability = currentAvailability?.rooms[slug];
-              const unavailable = availability?.status === "unavailable";
-              return <button type="button" role="option" aria-selected={selectedRoomSlug === slug} key={slug} className="reservation-room-option" disabled={unavailable || availabilityChecking} onClick={() => setSelectedRoomSlug(slug)}>
-                <span><b>{String(room.name)}</b><small>{String(room.abbreviation || room.bedConfiguration || "Room type")} · {Number(room.bedCount || 0)} {Number(room.bedCount || 0) === 1 ? "bed" : "beds"} · up to {Number(room.maxGuests || 0)} guests</small></span>
-                <span><b>{formatKsh(Number(room.nightlyRateKsh || 0))}</b><small>{availabilityChecking ? "Checking dates..." : availability ? unavailable ? "Unavailable" : `${availability.availableUnits} available` : `${Number(room.inventory)} rooms`}</small></span>
+            {!activeRooms.length ? <p>No active rooms are configured.</p> : !hasStayDates ? <p>Choose check-in and check-out dates to find available room numbers.</p> : availabilityChecking ? <p>Checking room numbers and availability…</p> : availabilityError ? <p role="alert">{availabilityError}</p> : !reservationChoices.length ? <p>No available rooms match that number or name, guest count, and bed filter.</p> : reservationChoices.map(({ accommodation, option }) => {
+              const roomCode = option?.code || "";
+              const selected = selectedRoomSlug === accommodation.slug && selectedRoomCode === roomCode;
+              const bedCount = option?.bedCount || 0;
+              const roomType = accommodation.type === "combination" ? "Combination" : "Room";
+              return <button type="button" role="option" aria-selected={selected} key={`${accommodation.slug}:${roomCode || (option?.unitCodes || []).join("+")}`} className="reservation-room-option" disabled={!option} onClick={() => { setSelectedRoomSlug(accommodation.slug); setSelectedRoomCode(roomCode); }}>
+                <span><b>{roomCode ? `Room ${roomCode}` : accommodation.name}</b><small>{roomCode ? `${accommodation.name} · ` : `${roomType} · `}{option?.unitCodes ? option.unitCodes.join(" + ") : `${bedCount} ${bedCount === 1 ? "bed" : "beds"} · up to ${option?.maxGuests || 0} guests`}</small></span>
+                <span><b>{option ? formatKsh(option.totalKsh) : "Unavailable"}</b><small>{option ? `${formatKsh(option.nightlyRateKsh)} / night · ${option.nights} ${option.nights === 1 ? "night" : "nights"}` : "No rooms available for these dates"}</small></span>
               </button>;
             })}
           </div>

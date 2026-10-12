@@ -44,6 +44,7 @@ type RoomCombinationInput = Omit<RoomCombination, "active" | "units">;
 
 type BookingInput = {
   roomSlug: string;
+  roomUnitCode?: string;
   checkIn: string;
   checkOut: string;
   guests: number;
@@ -555,6 +556,7 @@ type AvailabilityOption = ReturnType<typeof priceForStay> & {
   id?: number;
   code?: string;
   unitIds?: number[];
+  unitCodes?: string[];
   maxGuests: number;
   bedCount: number;
   bedConfiguration: string;
@@ -628,6 +630,7 @@ function getRoomCombinationAvailabilityStatus(checkIn: string, checkOut: string,
       maxGuests: combination.maxGuests,
       unitOptions: available ? [{
         unitIds: componentUnits.map((unit) => unit.id),
+        unitCodes: componentUnits.map((unit) => unit.code),
         ...price,
         maxGuests: combination.maxGuests,
         bedCount: details.bedCount || 0,
@@ -1012,7 +1015,9 @@ function reserve(input: BookingInput) {
   const availability = getRoomAvailabilityStatus(input.checkIn, input.checkOut, input.guests).find((item) => item.slug === input.roomSlug);
   if (!availability) throw new BookingError("ROOM_NOT_CONFIGURED", "This accommodation is not available to book.");
   if (!availability.guestLimitMet) throw new BookingError("GUEST_LIMIT", "This accommodation does not accommodate that number of guests.");
-  const option = availability.unitOptions[0];
+  const option = input.roomUnitCode
+    ? availability.unitOptions.find((candidate) => candidate.code?.toLowerCase() === input.roomUnitCode?.toLowerCase())
+    : availability.unitOptions[0];
   if (!option) throw new BookingError("NO_AVAILABILITY", "That accommodation is no longer available for these dates.");
   const unitIds = option.unitIds || (option.id === undefined ? [] : [option.id]);
   if (!unitIds.length) throw new BookingError("NO_AVAILABILITY", "The selected accommodation has no bookable physical rooms.");
